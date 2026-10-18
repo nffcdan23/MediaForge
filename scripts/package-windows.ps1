@@ -26,14 +26,15 @@ $hash = (Get-FileHash "dist\windows\MediaForge-Setup.exe" -Algorithm SHA256).Has
 [IO.File]::WriteAllText("$root\dist\windows\MediaForge-Setup.exe.sha256", "$hash  MediaForge-Setup.exe`n")
 
 $exe = "src-tauri\target\release\MediaForge.exe"
-# The C runtime must be linked in (src-tauri/.cargo/config.toml): a PC without the Visual C++ Redistributable
-# would otherwise refuse to start MediaForge. Imported DLL names appear as plain text in the program file.
+# The Visual C++ runtime must be linked in (src-tauri/.cargo/config.toml): a PC without the Visual C++
+# Redistributable would otherwise refuse to start MediaForge. (The Universal C Runtime, api-ms-win-crt-*, is
+# part of Windows 10 and 11 and needs nothing installed.) Imported DLL names appear as plain text in the file.
 $bytes = [IO.File]::ReadAllBytes((Resolve-Path $exe))
 $text = [Text.Encoding]::ASCII.GetString($bytes)
-foreach ($runtime in @("VCRUNTIME140.dll", "MSVCP140.dll", "api-ms-win-crt-")) {
+foreach ($runtime in @("VCRUNTIME140.dll", "VCRUNTIME140_1.dll", "MSVCP140.dll")) {
     if ($text.IndexOf($runtime, [StringComparison]::OrdinalIgnoreCase) -ge 0) { throw "MediaForge.exe depends on $runtime; the C runtime is not linked statically." }
 }
-Write-Host "    runtime     C runtime linked statically (no Visual C++ Redistributable needed)"
+Write-Host "    runtime     Visual C++ runtime linked in (no redistributable needed)"
 Write-Host "    installer   dist\windows\MediaForge-Setup.exe  ($([math]::Round($setup.Length / 1MB)) MB)"
 Write-Host "    sha256      $hash"
 Write-Host "    app         $((Get-Item $exe).VersionInfo.ProductVersion)"

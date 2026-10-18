@@ -9,9 +9,9 @@ set up but not exercised.
 
 | Installer | Location | Built on |
 | --- | --- | --- |
-| `MediaForge.dmg` (universal, internal test build) | `MediaForge-Tauri/dist/macos/MediaForge.dmg` (144 MB, SHA-256 in `.sha256` beside it) | This Mac |
+| `MediaForge.dmg` (universal, internal test build) | `MediaForge-Tauri/dist/macos/MediaForge.dmg` (144 MB; SHA-256 `d7dada58…` in `.sha256` beside it) | This Mac |
 | `MediaForge.dmg` (same, from CI) | GitHub ▸ nffcdan23/MediaForge ▸ Actions ▸ Build installers ▸ artifact `MediaForge-macOS` | GitHub macOS 26 runner |
-| `MediaForge-Setup.exe` | `MediaForge-Tauri/dist/windows/MediaForge-Setup.exe`, downloaded from the CI artifact `MediaForge-Windows` | GitHub Windows Server 2025 runner |
+| `MediaForge-Setup.exe` | `MediaForge-Tauri/dist/windows/MediaForge-Setup.exe` (95 MB; SHA-256 in `.sha256` beside it), downloaded from the CI artifact `MediaForge-Windows`, with its installation log and screenshots in `dist/windows/verification` | GitHub Windows Server 2025 runner |
 
 The Windows installer was built, installed, self-tested and uninstalled on GitHub's Windows machine. The copy
 in `dist/windows` is that tested artifact; its SHA-256 is beside it.
@@ -112,13 +112,13 @@ used. It was photographed at each step and compared with the Swift app's screens
 
 `scripts/verify-windows-install.ps1` ran on GitHub's Windows Server 2025 machine against
 `MediaForge-Setup.exe`, doing what a person would. Full log:
-`dist/ci/MediaForge-Windows/verification/verification.txt`.
+`dist/windows/verification/verification.txt`.
 
 | Check | Result |
 | --- | --- |
-| Silent install for the current user (no administrator rights) | ✔ installed to `%LOCALAPPDATA%\MediaForge`, version 1.1.0, publisher C2 Software, 95 MB installer |
+| Silent install for the current user (no administrator rights) | ✔ installed to `%LOCALAPPDATA%\MediaForge`, version 1.1.0, publisher C2 Software |
 | Files: MediaForge.exe, deno.exe, tools\yt-dlp, tools\ffmpeg (with DLLs), licence notices | ✔ |
-| Start Menu shortcut | ✔ |
+| Start Menu and desktop shortcuts | ✔ |
 | "Open with" registered for 17 audio/video types, not as default | ✔ |
 | Installed app's self-test: window loaded (WebView2) | ✔ |
 | Bundled yt-dlp 2026.08.19, FFmpeg n9.0.2, FFprobe start; Deno bundled | ✔ |
@@ -129,7 +129,7 @@ used. It was photographed at each step and compared with the Swift app's screens
 | Cancellation mid-download, nothing left behind | ✔ |
 | Licensing inactive, nothing withheld | ✔ |
 | First normal launch: dark title bar, sidebar, Welcome sheet ("on this PC") | ✔ screenshot `first-launch.png` |
-| Silent uninstall removes program files, Start Menu shortcut, Apps & features entry, "Open with" registration | ✔ |
+| Silent uninstall removes program files, Start Menu and desktop shortcuts, Apps & features entry, "Open with" registration | ✔ |
 
 ## What remains unverified
 
