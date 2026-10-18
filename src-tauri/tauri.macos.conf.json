@@ -1,0 +1,22 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "bundle": {
+    "targets": ["app"],
+    "fileAssociations": [
+      {
+        "ext": ["mp3", "wav", "aiff", "aif", "m4a", "aac", "flac", "ogg", "opus", "caf"],
+        "name": "Audio",
+        "role": "Viewer",
+        "rank": "Alternate",
+        "contentTypes": ["public.audio"]
+      },
+      {
+        "ext": ["mp4", "m4v", "mov", "mkv", "webm", "avi"],
+        "name": "Video",
+        "role": "Viewer",
+        "rank": "Alternate",
+        "contentTypes": ["public.movie"]
+      }
+    ]
+  }
+}

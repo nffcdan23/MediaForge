@@ -1,0 +1,10 @@
+{
+  "bundle": {
+    "externalBin": ["../tools/windows/bin/deno"],
+    "resources": {
+      "../tools/windows/yt-dlp/": "tools/yt-dlp/",
+      "../tools/windows/ffmpeg/": "tools/ffmpeg/",
+      "../tools/windows/notices/": "ThirdPartyNotices/"
+    }
+  }
+}

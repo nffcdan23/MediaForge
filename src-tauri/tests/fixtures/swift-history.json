@@ -1,0 +1,42 @@
+[
+  {
+    "date" : "2025-10-09T08:53:20Z",
+    "detail" : "Me",
+    "duration" : 12.5,
+    "fileSize" : 1234,
+    "id" : "57B7756B-04A5-44F0-90F2-0D7ED7E6FE3F",
+    "kind" : "download",
+    "outcome" : "completed",
+    "output" : {
+      "audio" : {
+        "_0" : {
+          "bitDepth" : 16,
+          "bitrate" : 320,
+          "format" : "mp3",
+          "sampleRate" : 0
+        }
+      }
+    },
+    "outputPath" : "\/tmp\/Clip.mp3",
+    "sourceURL" : "https:\/\/example.com\/x",
+    "thumbnailURL" : "https:\/\/example.com\/t.jpg",
+    "title" : "Clip"
+  },
+  {
+    "date" : "2025-10-09T08:55:00Z",
+    "errorMessage" : "No net",
+    "errorTitle" : "Network problem",
+    "id" : "AD0354C3-9FFC-4CBD-AAE6-BFFFAA2C58AD",
+    "kind" : "download",
+    "outcome" : "failed",
+    "output" : {
+      "video" : {
+        "_0" : {
+          "quality" : 1080
+        }
+      }
+    },
+    "sourceURL" : "https:\/\/example.com\/y",
+    "title" : "Film"
+  }
+]

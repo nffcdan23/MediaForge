@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-open-third-party-notices"
+description = "Enables the open_third_party_notices command without any pre-configured scope."
+commands.allow = ["open_third_party_notices"]
+
+[[permission]]
+identifier = "deny-open-third-party-notices"
+description = "Denies the open_third_party_notices command without any pre-configured scope."
+commands.deny = ["open_third_party_notices"]

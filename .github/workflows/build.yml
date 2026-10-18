@@ -1,0 +1,115 @@
+# Builds the installers and checks them on real machines. Run by hand (Actions ▸ Build installers ▸ Run
+# workflow) or by pushing a version tag. Results are workflow artifacts only: nothing is published.
+name: Build installers
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Windows installer
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Rust
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-registry-windows-${{ hashFiles('src-tauri/Cargo.lock') }}
+      - uses: actions/cache@v6
+        with:
+          path: tools/downloads
+          key: tools-windows-${{ hashFiles('packaging/tools.lock') }}
+      - name: Bundled tools (pinned, checksum-verified)
+        run: node scripts/fetch-tools.mjs windows
+      - name: Build MediaForge-Setup.exe
+        shell: pwsh
+        run: ./scripts/package-windows.ps1
+      - name: Install, self-test, screenshots, uninstall
+        shell: pwsh
+        run: ./scripts/verify-windows-install.ps1 -Installer dist/windows/MediaForge-Setup.exe -Results dist/windows/verification
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: MediaForge-Windows
+          path: dist/windows
+          if-no-files-found: error
+
+  macos:
+    name: macOS disk image (universal)
+    runs-on: macos-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Rust
+        run: |
+          rustup toolchain install stable --profile minimal --target aarch64-apple-darwin --target x86_64-apple-darwin
+          rustup default stable
+      - uses: actions/cache@v6
+        with:
+          path: tools/downloads
+          key: tools-macos-${{ hashFiles('packaging/tools.lock') }}
+      - uses: actions/cache@v6
+        with:
+          path: tools/macos/ffmpeg-build
+          key: ffmpeg-macos-${{ hashFiles('packaging/tools.lock', 'scripts/build-ffmpeg-macos.sh') }}
+      - name: Build MediaForge.dmg
+        run: scripts/package-macos.sh --internal
+      - name: Self-test (Apple silicon)
+        run: |
+          mkdir -p dist/macos/verification
+          dist/macos/MediaForge.app/Contents/MacOS/MediaForge --self-test dist/macos/verification/selftest-macos-arm64.json
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: MediaForge-macOS
+          path: |
+            dist/macos/MediaForge.dmg
+            dist/macos/MediaForge.dmg.sha256
+            dist/macos/verification
+          if-no-files-found: error
+
+  macos-intel:
+    name: macOS disk image on Intel
+    needs: macos
+    runs-on: macos-26-intel
+    timeout-minutes: 30
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: MediaForge-macOS
+          path: dmg
+      - name: Install from the disk image and self-test
+        run: |
+          mkdir -p verification
+          hdiutil attach -nobrowse -readonly -noautoopen -mountpoint /tmp/mediaforge-dmg dmg/MediaForge.dmg
+          ditto /tmp/mediaforge-dmg/MediaForge.app "$HOME/Applications/MediaForge.app"
+          hdiutil detach /tmp/mediaforge-dmg
+          uname -m
+          "$HOME/Applications/MediaForge.app/Contents/MacOS/MediaForge" --self-test verification/selftest-macos-intel.json
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: MediaForge-macOS-Intel-verification
+          path: verification

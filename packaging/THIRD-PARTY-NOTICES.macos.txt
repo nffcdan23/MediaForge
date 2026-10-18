@@ -1,0 +1,57 @@
+MediaForge: third-party software
+================================
+
+MediaForge is proprietary software, copyright C2 Software.
+
+To do its work MediaForge starts the separate programs listed below. They are included inside the
+application for convenience, and each remains under its own licence. They are independent programs:
+MediaForge runs them and reads their output. It does not link to them or contain their code.
+
+You may replace any of them with a copy of your own in MediaForge > Settings > Tools > Choose Location.
+The licence texts referred to below are in the same folder as this file.
+
+
+1. FFmpeg and FFprobe @FFMPEG_VERSION@
+   Where:    MediaForge.app/Contents/MacOS/ffmpeg, MediaForge.app/Contents/MacOS/ffprobe
+   Licence:  GNU Lesser General Public License, version 2.1 or later
+             (FFmpeg-COPYING.LGPLv2.1.txt, FFmpeg-LICENSE.md)
+   Built by C2 Software from unmodified source, without any GPL or non-free components.
+   The exact build options are in FFmpeg-BUILD-CONFIGURATION.txt.
+   Source:   https://ffmpeg.org/releases/ffmpeg-@FFMPEG_VERSION@.tar.xz
+
+   Includes the LAME MP3 encoder @LAME_VERSION@
+   Licence:  GNU Library General Public License, version 2 or later (LAME-COPYING.txt)
+   Source:   https://downloads.sourceforge.net/project/lame/lame/@LAME_VERSION@/lame-@LAME_VERSION@.tar.gz
+
+
+2. yt-dlp @YTDLP_VERSION@
+   Where:    MediaForge.app/Contents/Resources/tools/yt-dlp
+   Licence:  yt-dlp itself is released into the public domain (yt-dlp-LICENSE.txt). The packaged program
+             included here also contains components under other licences, among them the GNU General
+             Public License. Taken as a whole it is provided under the GNU General Public License,
+             version 3 or later (GPL-3.0.txt). Every component and its licence is listed in
+             yt-dlp-THIRD_PARTY_LICENSES.txt.
+   Included unmodified, exactly as published by the yt-dlp project (only the program file is renamed).
+   Program and source code:
+             https://github.com/yt-dlp/yt-dlp/releases/tag/@YTDLP_VERSION@
+
+
+3. Deno @DENO_VERSION@
+   Where:    MediaForge.app/Contents/MacOS/deno
+   Licence:  MIT (deno-LICENSE.md)
+   Included unmodified, as published and signed by Deno Land Inc. yt-dlp uses it to run scripts that
+   some media sites require.
+   Program and source code:
+             https://github.com/denoland/deno/releases/tag/v@DENO_VERSION@
+
+
+4. Interface components
+   MediaForge's window is built with Tauri (MIT or Apache-2.0), React (MIT) and Lucide icons (ISC),
+   which are compiled into the app. Their licences are listed at https://tauri.app, https://react.dev
+   and https://lucide.dev.
+
+
+Source code
+-----------
+The links above lead to the complete source code for the versions included. C2 Software will also supply
+the source code for the LGPL and GPL components on request.

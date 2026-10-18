@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-reset-tool-path"
+description = "Enables the reset_tool_path command without any pre-configured scope."
+commands.allow = ["reset_tool_path"]
+
+[[permission]]
+identifier = "deny-reset-tool-path"
+description = "Denies the reset_tool_path command without any pre-configured scope."
+commands.deny = ["reset_tool_path"]

@@ -1,0 +1,31 @@
+# Third-party components bundled with MediaForge. One per line:
+#
+#   platform   file-name   version   sha256   url
+#
+# scripts/fetch-tools.mjs refuses anything whose SHA-256 differs from the value here. To update a tool, change
+# its version, URL and checksum together, taking the checksum from the publisher (not from the file you just
+# downloaded), then rebuild and re-run the tests and the Windows self-test.
+#
+# Checksum sources:
+#   yt-dlp          SHA2-256SUMS in the same GitHub release
+#   deno            *.zip.sha256sum in the same GitHub release
+#   ffmpeg (Win)    checksums.sha256 in the same BtbN/FFmpeg-Builds release. Month-end builds, which BtbN keeps.
+#   ffmpeg, lame    Homebrew's formula for the same tarball (ffmpeg.org publishes only a GPG signature);
+#   (macOS source)  built by scripts/build-ffmpeg-macos.sh
+#
+# A checksum of "-" means a licence text whose content is recorded, not enforced. The GPL's own text, which
+# never changes, is kept in packaging/licenses.
+
+macos    yt-dlp_macos.zip                    2026.08.19   07e54b0865303c864006925913bce2604f8ee8cc6f18699bac9c309f9328a6d8  https://github.com/yt-dlp/yt-dlp/releases/download/2026.08.19/yt-dlp_macos.zip
+macos    deno-aarch64-apple-darwin.zip       2.9.7        5cd46d6268f6f78f5d88bdc7159d20bd44cdaa4b3303474839f87ec6fe7ae25c  https://github.com/denoland/deno/releases/download/v2.9.7/deno-aarch64-apple-darwin.zip
+macos    deno-x86_64-apple-darwin.zip        2.9.7        95daaff11c116a52ad54785e7914c8e9c9cdcaba793c5ed929c74ca2d8e6259a  https://github.com/denoland/deno/releases/download/v2.9.7/deno-x86_64-apple-darwin.zip
+macos    ffmpeg-9.0.2.tar.xz                 9.0.2        8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e  https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz
+macos    lame-4.0.tar.gz                     4.0          3df5124d5ad3a98312ffd7ba6a9b36230e4f8a3e66d3ce0f425e336c32d216eb  https://downloads.sourceforge.net/project/lame/lame/4.0/lame-4.0.tar.gz
+
+windows  yt-dlp_win.zip                      2026.08.19   30b4c14aafab6082becff7881e41b76df46dc43ea7633479410a91e29da492bf  https://github.com/yt-dlp/yt-dlp/releases/download/2026.08.19/yt-dlp_win.zip
+windows  deno-x86_64-pc-windows-msvc.zip     2.9.7        a0c3101b4158d1dfb7d6a78a7bf0f3de80c96bb423c152beec8beb22786f2238  https://github.com/denoland/deno/releases/download/v2.9.7/deno-x86_64-pc-windows-msvc.zip
+windows  ffmpeg-n9.0.2-17-g2a571b6068-win64-lgpl-shared-9.0.zip  n9.0.2-17  7157177b8a6cb2174c1650ba8c71b363f2c78cba5330f88c4c02cf5b2b880646  https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-09-30-13-08/ffmpeg-n9.0.2-17-g2a571b6068-win64-lgpl-shared-9.0.zip
+
+all      yt-dlp-LICENSE.txt                  2026.08.19   -  https://raw.githubusercontent.com/yt-dlp/yt-dlp/2026.08.19/LICENSE
+all      yt-dlp-THIRD_PARTY_LICENSES.txt     2026.08.19   -  https://raw.githubusercontent.com/yt-dlp/yt-dlp/2026.08.19/THIRD_PARTY_LICENSES.txt
+all      deno-LICENSE.md                     2.9.7        -  https://raw.githubusercontent.com/denoland/deno/v2.9.7/LICENSE.md

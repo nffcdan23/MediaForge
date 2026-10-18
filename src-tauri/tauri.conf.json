@@ -1,0 +1,83 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "MediaForge",
+  "mainBinaryName": "MediaForge",
+  "version": "1.1.0",
+  "identifier": "uk.co.c-2.MediaForge",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "withGlobalTauri": false,
+    "windows": [
+      {
+        "label": "main",
+        "title": "MediaForge",
+        "width": 1180,
+        "height": 780,
+        "minWidth": 940,
+        "minHeight": 620,
+        "center": true,
+        "visible": false,
+        "dragDropEnabled": true,
+        "backgroundColor": "#121118",
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "trafficLightPosition": { "x": 20, "y": 28 },
+        "acceptFirstMouse": true
+      }
+    ],
+    "security": {
+      "csp": {
+        "default-src": "'self'",
+        "script-src": "'self'",
+        "style-src": "'self' 'unsafe-inline'",
+        "img-src": "'self' data: asset: http://asset.localhost",
+        "media-src": "'self' asset: http://asset.localhost",
+        "connect-src": "ipc: http://ipc.localhost",
+        "font-src": "'self' data:",
+        "object-src": "'none'",
+        "base-uri": "'none'",
+        "form-action": "'none'",
+        "frame-ancestors": "'none'"
+      },
+      "devCsp": null,
+      "freezePrototype": true,
+      "assetProtocol": {
+        "enable": true,
+        "scope": []
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app"],
+    "publisher": "C2 Software",
+    "copyright": "Copyright © 2026 C2 Software. All rights reserved.",
+    "category": "Video",
+    "shortDescription": "Download and convert media you're authorised to use",
+    "longDescription": "MediaForge downloads audio and video you own, have licensed, or that the source permits you to download, and converts audio and video files into edit-ready formats. It does not bypass DRM, sign-in requirements or regional restrictions, and has no tracking, telemetry or advertising.",
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
+    "macOS": {
+      "bundleVersion": "4",
+      "minimumSystemVersion": "12.0",
+      "hardenedRuntime": true
+    },
+    "windows": {
+      "webviewInstallMode": { "type": "embedBootstrapper" },
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": ["English"],
+        "displayLanguageSelector": false,
+        "compression": "lzma",
+        "installerIcon": "icons/icon.ico",
+        "headerImage": "windows/nsis-header.bmp",
+        "sidebarImage": "windows/nsis-sidebar.bmp",
+        "installerHooks": "windows/installer-hooks.nsh"
+      }
+    }
+  }
+}

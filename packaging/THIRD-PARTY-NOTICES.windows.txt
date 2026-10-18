@@ -1,0 +1,53 @@
+MediaForge: third-party software
+================================
+
+MediaForge is proprietary software, copyright C2 Software.
+
+To do its work MediaForge starts the separate programs listed below. They are installed alongside the
+application for convenience, and each remains under its own licence. They are independent programs:
+MediaForge runs them and reads their output. It does not link to them or contain their code.
+
+You may replace any of them with a copy of your own in MediaForge > Settings > Tools > Choose Location.
+The licence texts referred to below are in the same folder as this file.
+
+
+1. FFmpeg and FFprobe @FFMPEG_VERSION@
+   Where:    <install folder>\tools\ffmpeg (ffmpeg.exe, ffprobe.exe and the FFmpeg libraries, *.dll)
+   Licence:  GNU Lesser General Public License, version 2.1 or later (FFmpeg-LICENSE.txt)
+   The LGPL build published by the FFmpeg-Builds project (https://github.com/BtbN/FFmpeg-Builds), without
+   any GPL or non-free components, included unmodified. Because the libraries are separate files, you may
+   replace them with your own builds. The build's exact configuration is in FFmpeg-BUILD-CONFIGURATION.txt.
+   Archive:  @FFMPEG_ARCHIVE@
+   Source:   https://ffmpeg.org/download.html and the build scripts at https://github.com/BtbN/FFmpeg-Builds
+
+
+2. yt-dlp @YTDLP_VERSION@
+   Where:    <install folder>\tools\yt-dlp
+   Licence:  yt-dlp itself is released into the public domain (yt-dlp-LICENSE.txt). The packaged program
+             included here also contains components under other licences, among them the GNU General
+             Public License. Taken as a whole it is provided under the GNU General Public License,
+             version 3 or later (GPL-3.0.txt). Every component and its licence is listed in
+             yt-dlp-THIRD_PARTY_LICENSES.txt.
+   Included unmodified, exactly as published by the yt-dlp project.
+   Program and source code:
+             https://github.com/yt-dlp/yt-dlp/releases/tag/@YTDLP_VERSION@
+
+
+3. Deno @DENO_VERSION@
+   Where:    <install folder>\deno.exe
+   Licence:  MIT (deno-LICENSE.md)
+   Included unmodified, as published by Deno Land Inc. yt-dlp uses it to run scripts that some media
+   sites require.
+   Program and source code:
+             https://github.com/denoland/deno/releases/tag/v@DENO_VERSION@
+
+
+4. Interface components
+   MediaForge's window is built with Tauri (MIT or Apache-2.0), React (MIT) and Lucide icons (ISC),
+   which are compiled into the app, and uses Microsoft Edge WebView2, which is part of Windows.
+
+
+Source code
+-----------
+The links above lead to the complete source code for the versions included. C2 Software will also supply
+the source code for the LGPL and GPL components on request.

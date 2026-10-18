@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-remove-history"
+description = "Enables the remove_history command without any pre-configured scope."
+commands.allow = ["remove_history"]
+
+[[permission]]
+identifier = "deny-remove-history"
+description = "Denies the remove_history command without any pre-configured scope."
+commands.deny = ["remove_history"]

@@ -1,0 +1,14 @@
+# Dependencies and build output
+node_modules/
+dist/
+src-tauri/target/
+src-tauri/gen/
+
+# Downloaded and assembled third-party tools (reproducible from packaging/tools.lock)
+tools/
+
+# Local files
+.DS_Store
+*.log
+.env
+.env.*

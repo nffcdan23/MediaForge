@@ -1,0 +1,33 @@
+{
+  "name": "mediaforge",
+  "private": true,
+  "version": "1.1.0",
+  "description": "Download and convert media you're authorised to use. macOS and Windows.",
+  "license": "UNLICENSED",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "tauri": "tauri"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "2.12.4",
+    "lucide-react": "1.59.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.12.3",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "typescript": "7.0.2",
+    "vite": "8.3.4",
+    "vitest": "5.0.5"
+  }
+}

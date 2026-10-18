@@ -1,0 +1,7 @@
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.nsh text eol=crlf
+*.bmp binary
+*.png binary
+*.icns binary
+*.ico binary

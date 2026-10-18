@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-waveform"
+description = "Enables the waveform command without any pre-configured scope."
+commands.allow = ["waveform"]
+
+[[permission]]
+identifier = "deny-waveform"
+description = "Denies the waveform command without any pre-configured scope."
+commands.deny = ["waveform"]

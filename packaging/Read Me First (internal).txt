@@ -1,0 +1,47 @@
+MediaForge @VERSION@ (build @BUILD@)
+INTERNAL TESTING BUILD - NOT FOR DISTRIBUTION OUTSIDE C2 SOFTWARE
+
+
+What this is
+------------
+A self-contained test build of MediaForge for Mac. The tools it relies on (yt-dlp, FFmpeg and Deno) are
+inside the app, so nothing else needs installing. It is built for both Apple silicon and Intel Macs.
+
+
+Installing
+----------
+Drag MediaForge onto the Applications folder in this window, then eject the disk image.
+
+
+Opening it for the first time
+-----------------------------
+This build is NOT signed with an Apple Developer ID and has NOT been checked ("notarised") by Apple.
+
+If this disk image reached you by download, email, chat or a shared drive, macOS will say it cannot
+verify the app and will decline to open it. That is macOS working as designed, not a fault.
+
+  * Do not switch off Gatekeeper, antivirus or any other security software to get round this.
+  * On a company-managed Mac, check with IT before going any further.
+  * macOS lets the owner of a Mac approve one specific app in System Settings > Privacy & Security
+    ("Open Anyway"). Apple describes this under "Open a Mac app from an unknown developer". Use it only
+    if your organisation's policy allows.
+
+The public release will be signed and notarised, and will open like any other app.
+
+
+Moving from the earlier MediaForge
+----------------------------------
+If this Mac has the earlier MediaForge (version 1.0), this version copies its settings and history the first
+time it opens. The earlier app and its files are left as they were. Both use the same name, so replace the
+old one in Applications when asked, or keep it elsewhere.
+
+
+Use
+---
+Only download media you own, have licensed, or that the source permits you to download. MediaForge does not
+bypass DRM, sign-in requirements, paywalls or regional restrictions.
+
+
+Problems
+--------
+Send a description, and a screenshot if there is one, to the person who gave you this build.

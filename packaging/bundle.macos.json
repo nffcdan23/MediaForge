@@ -1,0 +1,9 @@
+{
+  "bundle": {
+    "externalBin": ["../tools/macos/bin/ffmpeg", "../tools/macos/bin/ffprobe", "../tools/macos/bin/deno"],
+    "resources": {
+      "../tools/macos/yt-dlp/": "tools/yt-dlp/",
+      "../tools/macos/notices/": "ThirdPartyNotices/"
+    }
+  }
+}

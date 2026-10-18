@@ -1,0 +1,106 @@
+# Lint and test on every push: the interface, then the Rust engine on Windows and macOS with the real tools.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Interface (TypeScript, tests, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npx vite build
+
+  windows:
+    name: Engine on Windows
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx vite build
+      - name: Rust
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt,clippy
+          rustup default stable
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target
+          key: cargo-windows-${{ hashFiles('src-tauri/Cargo.lock') }}
+      - uses: actions/cache@v6
+        with:
+          path: tools/downloads
+          key: tools-windows-${{ hashFiles('packaging/tools.lock') }}
+      - name: Bundled tools (pinned, checksum-verified)
+        run: node scripts/fetch-tools.mjs windows
+      - name: Format
+        working-directory: src-tauri
+        run: cargo fmt --check
+      - name: Lint
+        working-directory: src-tauri
+        run: cargo clippy --locked --all-targets
+      - name: Tests
+        working-directory: src-tauri
+        shell: pwsh
+        run: |
+          $env:MEDIAFORGE_TEST_TOOLS = "$env:GITHUB_WORKSPACE\tools\windows\ffmpeg;$env:GITHUB_WORKSPACE\tools\windows\yt-dlp"
+          cargo test --locked -- --nocapture
+
+  macos:
+    name: Engine on macOS
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx vite build
+      - name: Rust
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt,clippy
+          rustup default stable
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target
+          key: cargo-macos-${{ hashFiles('src-tauri/Cargo.lock') }}
+      - name: Test tools
+        # For the integration tests only; packaged builds carry their own (see build.yml).
+        run: brew install ffmpeg yt-dlp
+      - name: Lint
+        working-directory: src-tauri
+        run: cargo clippy --locked --all-targets
+      - name: Tests
+        working-directory: src-tauri
+        run: cargo test --locked -- --nocapture

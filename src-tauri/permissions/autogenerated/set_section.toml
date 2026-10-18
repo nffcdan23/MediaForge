@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-set-section"
+description = "Enables the set_section command without any pre-configured scope."
+commands.allow = ["set_section"]
+
+[[permission]]
+identifier = "deny-set-section"
+description = "Denies the set_section command without any pre-configured scope."
+commands.deny = ["set_section"]
