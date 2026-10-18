@@ -472,42 +472,42 @@ mod windows_tests {
 
     #[tokio::test]
     async fn cancelling_terminates_the_whole_process_tree() {
+        // A parent batch file starts a child that writes a tick every second, then waits. Once the parent is
+        // cancelled the ticks must stop: the child was in the same Job Object and went with it.
         let dir = tempfile::tempdir().unwrap();
-        let pid_file = dir.path().join("child.pid");
-        let script = format!(
-            "$p = Start-Process -PassThru -WindowStyle Hidden -FilePath ping -ArgumentList '-n','60','127.0.0.1'; Set-Content -Path '{}' -Value $p.Id; Start-Sleep -Seconds 60",
-            pid_file.display()
-        );
-        let request = powershell(&script);
+        let tick = dir.path().join("tick.txt");
+        std::fs::write(
+            dir.path().join("child.cmd"),
+            "@echo off\r\n:loop\r\necho tick>>\"%~dp0tick.txt\"\r\nping -n 2 127.0.0.1 >nul\r\ngoto loop\r\n",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.path().join("parent.cmd"),
+            "@echo off\r\nstart \"\" /b cmd /d /c \"%~dp0child.cmd\"\r\nping -n 120 127.0.0.1 >nul\r\n",
+        )
+        .unwrap();
+        let request = cmd(&dir.path().join("parent.cmd").display().to_string());
         let cancel = CancellationToken::new();
-        let trigger = cancel.clone();
-        tokio::spawn(async move {
-            for _ in 0..100 {
-                tokio::time::sleep(Duration::from_millis(200)).await;
-            }
-            trigger.cancel();
-        });
-        // Cancel as soon as the grandchild has started.
         let watcher = {
-            let pid_file = pid_file.clone();
+            let tick = tick.clone();
             let cancel = cancel.clone();
             tokio::spawn(async move {
-                for _ in 0..150 {
-                    if pid_file.exists() {
-                        tokio::time::sleep(Duration::from_millis(300)).await;
-                        cancel.cancel();
-                        return;
+                for _ in 0..300 {
+                    if std::fs::metadata(&tick).map(|m| m.len()).unwrap_or(0) > 12 {
+                        break;
                     }
                     tokio::time::sleep(Duration::from_millis(100)).await;
                 }
+                cancel.cancel();
             })
         };
         assert_eq!(run_collect(&request, &cancel).await.unwrap_err(), ProcessError::Cancelled);
         watcher.await.unwrap();
-        let pid: u32 = std::fs::read_to_string(&pid_file).unwrap().trim().parse().unwrap();
-        tokio::time::sleep(Duration::from_millis(500)).await;
-        let check = run_collect(&cmd(&format!("tasklist /FI \"PID eq {pid}\" /NH")), &CancellationToken::new()).await.unwrap();
-        let listing = String::from_utf8_lossy(&check.stdout);
-        assert!(!listing.contains(&pid.to_string()), "grandchild {pid} survived: {listing}");
+        let ticks = || std::fs::metadata(&tick).map(|m| m.len()).unwrap_or(0);
+        assert!(ticks() > 0, "the child never started");
+        tokio::time::sleep(Duration::from_millis(1500)).await;
+        let before = ticks();
+        tokio::time::sleep(Duration::from_secs(3)).await;
+        assert_eq!(ticks(), before, "the child kept running after its parent was cancelled");
     }
 }
