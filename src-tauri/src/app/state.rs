@@ -78,6 +78,8 @@ pub struct AppState {
     pub resolver: Mutex<Option<CancellationToken>>,
     /// Files the webview has been allowed to play through the asset protocol.
     pub previews: Mutex<HashSet<PathBuf>>,
+    /// Artwork addresses yt-dlp reported for links looked up this session.
+    pub known_thumbnails: Mutex<HashSet<String>>,
     pub quitting: AtomicBool,
     pub frontend_ready: AtomicBool,
     /// Section to show once the window has loaded, for files opened before it was ready.
@@ -146,6 +148,7 @@ impl AppState {
             licensing: LicensingServices::inactive(),
             resolver: Mutex::new(None),
             previews: Mutex::new(HashSet::new()),
+            known_thumbnails: Mutex::new(HashSet::new()),
             quitting: AtomicBool::new(false),
             frontend_ready: AtomicBool::new(false),
             pending_section: Mutex::new(None),
@@ -202,6 +205,13 @@ impl AppState {
         let matches = |candidate: &Path| candidate == path;
         self.queue.output_paths().iter().any(|p| matches(p))
             || self.history.lock().unwrap().entries().iter().filter_map(|e| e.output_path.as_deref()).any(|p| matches(Path::new(p)))
+    }
+
+    /// Artwork the window may ask for: reported by yt-dlp this session, or belonging to a job or History entry.
+    pub fn is_known_thumbnail(&self, url: &str) -> bool {
+        self.known_thumbnails.lock().unwrap().contains(url)
+            || self.queue.snapshots().iter().any(|j| j.thumbnail_url.as_deref() == Some(url))
+            || self.history.lock().unwrap().entries().iter().any(|e| e.thumbnail_url.as_deref() == Some(url))
     }
 
     /// Shows the window again, for example after it was closed on macOS or when a second copy was launched.

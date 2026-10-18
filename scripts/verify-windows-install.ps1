@@ -58,6 +58,8 @@ Note "files: MediaForge.exe, deno.exe, tools\yt-dlp, tools\ffmpeg, licence notic
 $shortcut = Get-ChildItem "$env:APPDATA\Microsoft\Windows\Start Menu\Programs" -Recurse -Filter "MediaForge.lnk" | Select-Object -First 1
 if (-not $shortcut) { Fail "no Start Menu shortcut" }
 Note "Start Menu: $($shortcut.FullName)"
+$desktopShortcut = Join-Path ([Environment]::GetFolderPath("Desktop")) "MediaForge.lnk"
+Note ("Desktop shortcut: " + $(if (Test-Path $desktopShortcut) { $desktopShortcut } else { "none" }))
 if (-not (Test-Path "HKCU:\Software\Classes\Applications\MediaForge.exe\SupportedTypes")) { Fail "'Open with' registration is missing" }
 Note "Open with: registered for $(((Get-Item 'HKCU:\Software\Classes\Applications\MediaForge.exe\SupportedTypes').Property).Count) file types"
 
@@ -91,5 +93,7 @@ if (Test-Path $exe) { Fail "MediaForge.exe is still there after uninstalling" }
 if (Find-Uninstall) { Fail "the Apps & features entry is still there" }
 if (Get-ChildItem "$env:APPDATA\Microsoft\Windows\Start Menu\Programs" -Recurse -Filter "MediaForge.lnk") { Fail "the Start Menu shortcut is still there" }
 if (Test-Path "HKCU:\Software\Classes\Applications\MediaForge.exe") { Fail "the 'Open with' registration is still there" }
-Note "uninstall: program files, shortcut, Apps & features entry and 'Open with' registration removed"
+$desktop = [Environment]::GetFolderPath("Desktop")
+if (Test-Path (Join-Path $desktop "MediaForge.lnk")) { Fail "the desktop shortcut is still there" }
+Note "uninstall: program files, Start Menu and desktop shortcuts, Apps & features entry and 'Open with' registration removed"
 Note "== All installation checks passed"

@@ -100,7 +100,13 @@ pub fn bootstrap(app: AppHandle, state: AppStateRef<'_>) -> Bootstrap {
 // MARK: - Settings
 
 #[tauri::command]
-pub fn update_settings(change: Map<String, Value>, state: AppStateRef<'_>) -> Settings {
+pub fn update_settings(mut change: Map<String, Value>, state: AppStateRef<'_>) -> Settings {
+    // Which programs MediaForge runs, and where it writes, change only through the system's own file
+    // dialogs (choose_tool_path, choose_destination). The window can't set them directly, so even a
+    // compromised page couldn't point "FFmpeg" at another program.
+    for protected in ["toolPaths", "destinationPath"] {
+        change.remove(protected);
+    }
     let before = state.settings();
     let after = state.settings.lock().unwrap().update(&change).clone();
     apply_side_effects(&state, &before, &after);
@@ -291,6 +297,9 @@ pub async fn resolve_link(url: String, state: AppStateRef<'_>) -> CommandResult<
         Err(Failure::Cancelled) => return Err(cancelled()),
         Err(Failure::Error(error)) => return Err(failure(error)),
     };
+    if let Some(thumbnail) = &metadata.thumbnail_url {
+        state.known_thumbnails.lock().unwrap().insert(thumbnail.clone());
+    }
     if metadata.is_playlist && metadata.playlist_entries.is_empty() {
         return Err(failure(MediaForgeError::Unavailable));
     }
@@ -347,7 +356,7 @@ pub fn enqueue_downloads(items: Vec<DownloadItem>, output: OutputSpec, state: Ap
             let mut job = Job::new(JobSource::Remote(url), output, title);
             job.detail = item.detail.map(|d| d.chars().take(300).collect());
             job.duration = item.duration.filter(|d| d.is_finite() && *d > 0.0);
-            job.thumbnail_url = item.thumbnail_url.filter(|t| url::Url::parse(t).is_ok_and(|u| matches!(u.scheme(), "http" | "https")));
+            job.thumbnail_url = item.thumbnail_url.filter(|t| state.is_known_thumbnail(t));
             Some(job)
         })
         .collect();
@@ -559,7 +568,14 @@ pub enum ThumbnailRequest {
 #[tauri::command]
 pub async fn thumbnail(source: ThumbnailRequest, state: AppStateRef<'_>) -> CommandResult<Option<String>> {
     Ok(match source {
-        ThumbnailRequest::Remote { url } => state.artwork.remote(&url).await,
+        ThumbnailRequest::Remote { url } => {
+            // Only artwork addresses that came from yt-dlp, a job or History: the window can't use this to
+            // make requests of its own.
+            if !state.is_known_thumbnail(&url) {
+                return Ok(None);
+            }
+            state.artwork.remote(&url).await
+        }
         ThumbnailRequest::File { path } => {
             let path = PathBuf::from(path);
             // Source files the user added, or files MediaForge made: never arbitrary paths.

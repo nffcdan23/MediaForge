@@ -16,7 +16,7 @@
 
 .window.platform-windows,
 .window.platform-linux {
-  --sidebar-top: 14px;
+  --sidebar-top: 36px;
 }
 
 /* ── Sidebar ────────────────────────────────────────────────────────── */
