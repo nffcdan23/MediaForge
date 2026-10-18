@@ -135,7 +135,7 @@ export async function connect() {
         }
       } else if (debug.action === "videoPreview") {
         const job = [...app.get().jobs].reverse().find((j) => j.state.type === "completed" && j.output.type === "video");
-        if (job?.outputPath) app.set({ videoPreview: { path: job.outputPath, title: job.title } });
+        if (job?.outputPath) app.set({ videoPreview: { path: job.outputPath, title: job.title, muted: true } });
       } else if (debug.action === "terms") {
         app.set({ showingTerms: true });
       } else if (debug.action.startsWith("log:")) {

@@ -28,7 +28,7 @@ export interface AppData {
   showingTerms: boolean;
   alert: Alert | null;
   confirmation: Confirmation | null;
-  videoPreview: { path: string; title: string } | null;
+  videoPreview: { path: string; title: string; muted?: boolean } | null;
   log: { jobId: string; anchor: { x: number; y: number } } | null;
   sidebarCollapsed: boolean;
   dropActive: boolean;

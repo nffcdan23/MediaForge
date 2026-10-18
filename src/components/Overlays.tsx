@@ -144,7 +144,7 @@ export function VideoPreview() {
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-label={preview.title} onClick={close}>
       <div className="video-preview" onClick={(e) => e.stopPropagation()}>
-        {source && !failed && <video src={source} controls autoPlay playsInline onError={() => setFailed(true)} />}
+        {source && !failed && <video src={source} controls autoPlay playsInline muted={preview.muted} onError={() => setFailed(true)} />}
         {failed && (
           <div style={{ padding: 40, color: "#fff", textAlign: "center" }}>
             This video can't be played inside MediaForge{isMac() ? "" : " on this PC"}. Open it in your video player instead.

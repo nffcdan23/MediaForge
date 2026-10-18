@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- REHEARSAL ONLY. Never use for a release.
+	     Under the hardened runtime a program may only load libraries signed by the same team. A local
+	     "ad hoc" signature has no team, so yt-dlp could not load its own libraries during a rehearsal.
+	     With C2 Software's Developer ID every library shares the team identity and this is not needed. -->
+	<key>com.apple.security.cs.disable-library-validation</key>
+	<true/>
+</dict>
+</plist>
