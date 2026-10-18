@@ -74,6 +74,8 @@ jobs:
 
   macos:
     name: Engine on macOS
+    # macOS runners cost ten times as many Actions minutes; run on request (Run workflow) or for pull requests.
+    if: github.event_name != 'push'
     runs-on: macos-latest
     timeout-minutes: 60
     steps:
