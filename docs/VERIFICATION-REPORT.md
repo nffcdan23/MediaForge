@@ -11,7 +11,7 @@ set up but not exercised.
 | --- | --- | --- |
 | `MediaForge.dmg` (universal, internal test build) | `MediaForge-Tauri/dist/macos/MediaForge.dmg` (144 MB; SHA-256 `d7dada58…` in `.sha256` beside it) | This Mac |
 | `MediaForge.dmg` (same, from CI) | GitHub ▸ nffcdan23/MediaForge ▸ Actions ▸ Build installers ▸ artifact `MediaForge-macOS` | GitHub macOS 26 runner |
-| `MediaForge-Setup.exe` | `MediaForge-Tauri/dist/windows/MediaForge-Setup.exe` (95 MB; SHA-256 in `.sha256` beside it), downloaded from the CI artifact `MediaForge-Windows`, with its installation log and screenshots in `dist/windows/verification` | GitHub Windows Server 2025 runner |
+| `MediaForge-Setup.exe` | `MediaForge-Tauri/dist/windows/MediaForge-Setup.exe` (95 MB; SHA-256 `656266a2…` in `.sha256` beside it), downloaded from the CI artifact `MediaForge-Windows` (Build installers run 39151925688), with its installation log and screenshots in `dist/windows/verification` | GitHub Windows Server 2025 runner |
 
 The Windows installer was built, installed, self-tested and uninstalled on GitHub's Windows machine. The copy
 in `dist/windows` is that tested artifact; its SHA-256 is beside it.
@@ -118,6 +118,7 @@ used. It was photographed at each step and compared with the Swift app's screens
 | --- | --- |
 | Silent install for the current user (no administrator rights) | ✔ installed to `%LOCALAPPDATA%\MediaForge`, version 1.1.0, publisher C2 Software |
 | Files: MediaForge.exe, deno.exe, tools\yt-dlp, tools\ffmpeg (with DLLs), licence notices | ✔ |
+| MediaForge.exe needs no Visual C++ Redistributable (no `VCRUNTIME140`/`MSVCP140` reference; checked at build) | ✔ (it does use the Universal C Runtime, which is part of Windows 10 and 11) |
 | Start Menu and desktop shortcuts | ✔ |
 | "Open with" registered for 17 audio/video types, not as default | ✔ |
 | Installed app's self-test: window loaded (WebView2) | ✔ |

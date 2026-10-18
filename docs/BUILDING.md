@@ -84,8 +84,10 @@ The installer:
 - registers MediaForge under "Open with" for audio and video files, without becoming the default for any;
 - installs Microsoft WebView2 if the PC lacks it.
 
-Rust is linked with the static C runtime (`src-tauri/.cargo/config.toml`), so no Visual C++ redistributable is
-needed.
+The Visual C++ runtime is linked into `MediaForge.exe` (`src-tauri/.cargo/config.toml`), so no Visual C++
+Redistributable is needed. `package-windows.ps1` fails the build if the program still refers to `VCRUNTIME140`,
+`VCRUNTIME140_1` or `MSVCP140`. The program does use the Universal C Runtime (`api-ms-win-crt-*`), which is part
+of Windows 10 and 11.
 
 Building the Windows installer on a Mac is possible with `cargo-xwin`. It isn't set up here: it needs LLVM and
 Microsoft's Windows SDK, which means accepting Microsoft's licence. It also can't test anything, which the
