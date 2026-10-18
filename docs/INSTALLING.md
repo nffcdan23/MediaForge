@@ -7,7 +7,7 @@
    **More info**, check the publisher and file name, then click **Run anyway**. Do this only for a
    `MediaForge-Setup.exe` you received from C2 Software. (Antivirus software may also want to scan it; let it.)
 3. Click through the installer. MediaForge installs for you alone, so Windows doesn't ask for an
-   administrator password. It goes in `%LOCALAPPDATA%\MediaForge` and appears in the Start menu. If the PC lacks
+   administrator password. It goes in `%LOCALAPPDATA%\MediaForge` and appears in the Start menu and on the desktop. If the PC lacks
    Microsoft Edge WebView2 (it is part of Windows 11 and of up-to-date Windows 10), the installer adds it, which
    needs an internet connection.
 4. Open MediaForge from the Start menu. The first time, it explains what it is for. Click **I Understand**.
@@ -45,6 +45,6 @@ settings and history. The earlier app keeps its own. Replace the old app in Appl
 
 ## What MediaForge needs
 
-- About 400 MB of disk space on a Mac, and about 270 MB on Windows.
+- About 400 MB of disk space (the app plus its bundled yt-dlp, FFmpeg and Deno).
 - An internet connection for downloads. Conversions work offline.
 - Nothing else: no accounts, no sign-in, no background services.

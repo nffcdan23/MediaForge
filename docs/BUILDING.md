@@ -80,7 +80,7 @@ the first time.
 
 The installer:
 - installs per user into `%LOCALAPPDATA%\MediaForge`, so no administrator prompt;
-- adds a Start Menu shortcut and an uninstaller in Apps & features;
+- adds Start Menu and desktop shortcuts and an uninstaller in Apps & features;
 - registers MediaForge under "Open with" for audio and video files, without becoming the default for any;
 - installs Microsoft WebView2 if the PC lacks it.
 

@@ -22,9 +22,18 @@ if (-not $setup) { throw "The NSIS installer was not produced." }
 New-Item -ItemType Directory -Force "dist\windows" | Out-Null
 Copy-Item $setup.FullName "dist\windows\MediaForge-Setup.exe" -Force
 $hash = (Get-FileHash "dist\windows\MediaForge-Setup.exe" -Algorithm SHA256).Hash.ToLower()
-"$hash  MediaForge-Setup.exe" | Out-File "dist\windows\MediaForge-Setup.exe.sha256" -Encoding ascii
+# LF line ending, so `shasum -c` on a Mac and `sha256sum -c` elsewhere can check it too.
+[IO.File]::WriteAllText("$root\dist\windows\MediaForge-Setup.exe.sha256", "$hash  MediaForge-Setup.exe`n")
 
 $exe = "src-tauri\target\release\MediaForge.exe"
+# The C runtime must be linked in (src-tauri/.cargo/config.toml): a PC without the Visual C++ Redistributable
+# would otherwise refuse to start MediaForge. Imported DLL names appear as plain text in the program file.
+$bytes = [IO.File]::ReadAllBytes((Resolve-Path $exe))
+$text = [Text.Encoding]::ASCII.GetString($bytes)
+foreach ($runtime in @("VCRUNTIME140.dll", "MSVCP140.dll", "api-ms-win-crt-")) {
+    if ($text.IndexOf($runtime, [StringComparison]::OrdinalIgnoreCase) -ge 0) { throw "MediaForge.exe depends on $runtime; the C runtime is not linked statically." }
+}
+Write-Host "    runtime     C runtime linked statically (no Visual C++ Redistributable needed)"
 Write-Host "    installer   dist\windows\MediaForge-Setup.exe  ($([math]::Round($setup.Length / 1MB)) MB)"
 Write-Host "    sha256      $hash"
 Write-Host "    app         $((Get-Item $exe).VersionInfo.ProductVersion)"

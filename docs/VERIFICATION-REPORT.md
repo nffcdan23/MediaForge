@@ -13,7 +13,8 @@ set up but not exercised.
 | `MediaForge.dmg` (same, from CI) | GitHub ▸ nffcdan23/MediaForge ▸ Actions ▸ Build installers ▸ artifact `MediaForge-macOS` | GitHub macOS 26 runner |
 | `MediaForge-Setup.exe` | `MediaForge-Tauri/dist/windows/MediaForge-Setup.exe`, downloaded from the CI artifact `MediaForge-Windows` | GitHub Windows Server 2025 runner |
 
-@WINDOWS_ARTIFACT@
+The Windows installer was built, installed, self-tested and uninstalled on GitHub's Windows machine. The copy
+in `dist/windows` is that tested artifact; its SHA-256 is beside it.
 
 ## What was implemented
 
@@ -55,8 +56,8 @@ set up but not exercised.
 
 | Suite | macOS (this Mac) | Windows (GitHub) |
 | --- | --- | --- |
-| Rust unit tests (107): validation, sanitising, arguments, parsing, error mapping, settings, history, Swift-app import, licensing, process runner | ✔ 107/107 | @WIN_UNIT@ |
-| Rust end-to-end tests (15) with real FFmpeg and yt-dlp: every audio format, numbered names, concurrency limit, awkward names, missing/corrupt/silent files, retry after fix, missing tool, unusable destination, cancel while waiting, link lookup, downloads to MP3 and FLAC with tags, VP9 → H.264 video, audio-only source asked for video, 404 and unreachable server, size limit, cancel mid-download | ✔ 15/15 (Homebrew FFmpeg 9.0.2, yt-dlp 2026.08.19) | @WIN_E2E@ |
+| Rust unit tests (107): validation, sanitising, arguments, parsing, error mapping, settings, history, Swift-app import, licensing, process runner | ✔ 107/107 | ✔ 98/98 (the Unix-only process tests are replaced by Windows ones: exit codes, timeout, Job Object tree cancellation) |
+| Rust end-to-end tests (15) with real FFmpeg and yt-dlp: every audio format, numbered names, concurrency limit, awkward names, missing/corrupt/silent files, retry after fix, missing tool, unusable destination, cancel while waiting, link lookup, downloads to MP3 and FLAC with tags, VP9 → H.264 video, audio-only source asked for video, 404 and unreachable server, size limit, cancel mid-download | ✔ 15/15 (Homebrew FFmpeg 9.0.2, yt-dlp 2026.08.19) | ✔ 15/15, none skipped, with the bundled Windows FFmpeg (BtbN 9.0.2 LGPL) and yt-dlp; the VP9 → H.264 test used Windows' encoder |
 | Interface unit tests (7): formatting, job status lines, conversion note | ✔ 7/7 | ✔ (Ubuntu) |
 
 ### The packaged macOS app (`dist/macos/MediaForge.app`, release build, bundled tools only)
@@ -74,7 +75,10 @@ set up but not exercised.
 The video check was skipped: the bundled LGPL FFmpeg has no test-pattern generator to make a VP9 clip. Video
 conversion was tested instead in the end-to-end tests and the interface run below.
 
-@MAC_CI@
+The same checks passed on GitHub with the CI-built disk image:
+- on an Apple silicon Mac (macOS 26);
+- **on an Intel Mac** (`macos-26-intel`), after installing from the disk image. That proves the Intel half of
+  the universal app and of every bundled tool, which can't be run on this Mac.
 
 Also checked on this Mac:
 - every program inside the app is universal (arm64 + x86_64);
@@ -106,7 +110,26 @@ used. It was photographed at each step and compared with the Swift app's screens
 
 ### Windows
 
-@WINDOWS_RESULTS@
+`scripts/verify-windows-install.ps1` ran on GitHub's Windows Server 2025 machine against
+`MediaForge-Setup.exe`, doing what a person would. Full log:
+`dist/ci/MediaForge-Windows/verification/verification.txt`.
+
+| Check | Result |
+| --- | --- |
+| Silent install for the current user (no administrator rights) | ✔ installed to `%LOCALAPPDATA%\MediaForge`, version 1.1.0, publisher C2 Software, 95 MB installer |
+| Files: MediaForge.exe, deno.exe, tools\yt-dlp, tools\ffmpeg (with DLLs), licence notices | ✔ |
+| Start Menu shortcut | ✔ |
+| "Open with" registered for 17 audio/video types, not as default | ✔ |
+| Installed app's self-test: window loaded (WebView2) | ✔ |
+| Bundled yt-dlp 2026.08.19, FFmpeg n9.0.2, FFprobe start; Deno bundled | ✔ |
+| Conversion to MP3, WAV 24-bit, AAC, M4A, FLAC, AIFF (each checked with ffprobe) | ✔ |
+| Waveform, link lookup, audio download through yt-dlp | ✔ |
+| VP9 download converted to H.264, with **Windows' Media Foundation encoder** (no GPU on the runner) | ✔ |
+| Video thumbnail extraction | ✔ |
+| Cancellation mid-download, nothing left behind | ✔ |
+| Licensing inactive, nothing withheld | ✔ |
+| First normal launch: dark title bar, sidebar, Welcome sheet ("on this PC") | ✔ screenshot `first-launch.png` |
+| Silent uninstall removes program files, Start Menu shortcut, Apps & features entry, "Open with" registration | ✔ |
 
 ## What remains unverified
 
@@ -127,7 +150,8 @@ used. It was photographed at each step and compared with the Swift app's screens
    clicked them in this session.
 3. **macOS 12–25.** The app is configured for macOS 12 and later. Only macOS 26 (GitHub) and 27 (this Mac)
    were run.
-4. **The Intel slice** on this Mac (Rosetta is gone). @INTEL@
+4. **The Intel slice** on this Mac (Rosetta is gone). Covered instead by GitHub's Intel Mac runner (above), which installed the disk image and passed the
+   self-test.
 5. **Signed builds.** Developer ID signing, notarisation and Windows code signing need credentials that
    don't exist yet.
 6. **The one-time import of the Swift app's settings and history** was tested with synthetic files written in
