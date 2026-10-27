@@ -1,8 +1,8 @@
 //! `MediaForge --self-test <report.json>`: checks that an installed copy works on this computer, then quits.
 //!
 //! It drives the real engine through the same queue the UI uses: the bundled tools, conversions to every
-//! format, downloads with yt-dlp, video conversion with this computer's encoder, artwork, waveforms and
-//! cancellation. Media is generated on the spot and served from the loopback interface, so nothing outside
+//! format, image conversion and image links, downloads with yt-dlp, video conversion with this computer's
+//! encoder, artwork, waveforms and cancellation. Media is generated on the spot and served from the loopback interface, so nothing outside
 //! the computer is contacted. Settings, history and output go to a temporary folder that is removed
 //! afterwards; the user's own are never touched.
 
@@ -20,9 +20,12 @@ use super::local_server::{self, LocalServer};
 use super::state::AppState;
 use crate::engine::job::{Job, JobSource, JobState};
 use crate::media::ffmpeg::Ffmpeg;
+use crate::media::image::{self as images, SourceKind};
+use crate::media::image_link::{self, Probe};
 use crate::media::ytdlp::YtDlp;
 use crate::models::{
-    AudioBitrate, AudioFormat, AudioOptions, BitDepth, OutputSpec, SampleRate, VideoCompatibility, VideoOptions, VideoQuality,
+    AudioBitrate, AudioFormat, AudioOptions, BitDepth, ImageFormat, ImageOptions, ImageQuality, OutputSpec, SampleRate, VideoCompatibility,
+    VideoOptions, VideoQuality,
 };
 use crate::process::{self, ProcessRequest};
 use crate::support::url_validator;
@@ -252,6 +255,38 @@ async fn run(app: &AppHandle, state: &Arc<AppState>, checks: &mut Checks) {
         );
     }
 
+    // Images: a WebP with a transparent half, made here, into JPG (transparency on white) and PNG (kept).
+    let picture = scratch.join("Self Test Picture.webp");
+    let have_picture = write_test_webp(&picture);
+    if !have_picture {
+        checks.record("convert image", Instant::now(), Err("couldn't write the test picture".into()));
+    }
+    for format in [ImageFormat::Jpg, ImageFormat::Png] {
+        if !have_picture {
+            break;
+        }
+        let started = Instant::now();
+        let options = ImageOptions { format, quality: ImageQuality::High };
+        let job =
+            Job::new(JobSource::File(picture.clone()), OutputSpec::Image(options), format!("Self Test Picture {}", format.display_name()));
+        let id = job.id;
+        state.queue.enqueue(vec![job]);
+        let result = describe(wait_for_job(state, id, Duration::from_secs(60)).await).and_then(|job| check_picture(&job, format));
+        checks.record(&format!("convert image {}", format.display_name()), started, result);
+    }
+    if have_picture {
+        let started = Instant::now();
+        let thumbnail = state.artwork.local(&picture, None).await;
+        checks.record(
+            "image thumbnail",
+            started,
+            match thumbnail {
+                Some(url) if url.starts_with("data:image/png") => Ok(format!("{} bytes", url.len())),
+                other => Err(format!("unexpected thumbnail: {:?}", other.map(|u| u.chars().take(30).collect::<String>()))),
+            },
+        );
+    }
+
     // Downloads through yt-dlp, from a server on this computer.
     let Ok(server) = LocalServer::start(&scratch, None) else {
         checks.record("download", Instant::now(), Err("couldn't start the local test server".into()));
@@ -286,6 +321,27 @@ async fn run(app: &AppHandle, state: &Arc<AppState>, checks: &mut Checks) {
         if path.is_file() { Ok(format!("{} bytes", job.output_size.unwrap_or(0))) } else { Err("no file was delivered".into()) }
     });
     checks.record("download audio", started, result);
+
+    // An image link: looked up and downloaded by MediaForge itself, saved as JPG.
+    if have_picture {
+        let started = Instant::now();
+        let url = url_validator::validate(&server.url("Self%20Test%20Picture.webp")).expect("a loopback link is valid");
+        let lookup = match image_link::probe(&url, &CancellationToken::new()).await {
+            Ok(Probe::Image(link)) if link.kind == SourceKind::Webp && link.width == Some(64) && link.height == Some(32) => {
+                Ok(format!("“{}”, {} {}×{}", link.title, link.kind.name(), 64, 32))
+            }
+            Ok(other) => Err(format!("unexpected answer: {other:?}")),
+            Err(error) => Err(format!("{error:?}")),
+        };
+        checks.record("look up image link", started, lookup);
+
+        let started = Instant::now();
+        let job = Job::new(JobSource::Remote(url.clone()), OutputSpec::Image(ImageOptions::default()), url.display_name());
+        let id = job.id;
+        state.queue.enqueue(vec![job]);
+        let result = describe(wait_for_job(state, id, Duration::from_secs(60)).await).and_then(|job| check_picture(&job, ImageFormat::Jpg));
+        checks.record("download image", started, result);
+    }
 
     // Video: a VP9 clip, downloaded and converted to H.264 with this computer's encoder.
     let ffmpeg = state.tools.path(Tool::Ffmpeg);
@@ -372,6 +428,44 @@ async fn run(app: &AppHandle, state: &Arc<AppState>, checks: &mut Checks) {
         },
     );
     let _ = app;
+}
+
+/// A 64×32 lossless WebP: transparent on the left, red on the right.
+fn write_test_webp(path: &Path) -> bool {
+    use image::ImageEncoder;
+    let picture =
+        image::RgbaImage::from_fn(64, 32, |x, _| if x < 32 { image::Rgba([0, 0, 0, 0]) } else { image::Rgba([220, 30, 40, 255]) });
+    let Ok(file) = std::fs::File::create(path) else { return false };
+    image::codecs::webp::WebPEncoder::new_lossless(file).write_image(picture.as_raw(), 64, 32, image::ExtendedColorType::Rgba8).is_ok()
+}
+
+/// Checks a converted test picture: the right format and size, and the transparent half white in a JPG or
+/// still transparent in a PNG.
+fn check_picture(job: &Job, format: ImageFormat) -> Result<String, String> {
+    let path = job.output_path.clone().unwrap_or_default();
+    let kind = images::identify(&path).map_err(|e| e.message())?;
+    let expected = if format == ImageFormat::Jpg { SourceKind::Jpeg } else { SourceKind::Png };
+    if kind != expected {
+        return Err(format!("expected {}, found {}", expected.name(), kind.name()));
+    }
+    let decoded = image::ImageReader::open(&path).map_err(|e| e.to_string())?.decode().map_err(|e| e.to_string())?.into_rgba8();
+    if decoded.dimensions() != (64, 32) {
+        return Err(format!("size {:?}", decoded.dimensions()));
+    }
+    let corner = decoded.get_pixel(4, 4).0;
+    let transparent_ok = match format {
+        ImageFormat::Jpg => corner[0] > 250 && corner[1] > 250 && corner[2] > 250,
+        ImageFormat::Png => corner[3] == 0,
+    };
+    if !transparent_ok {
+        return Err(format!("transparent area came out as {corner:?}"));
+    }
+    Ok(format!(
+        "{} ({} bytes, {})",
+        path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default(),
+        job.output_size.unwrap_or(0),
+        kind.name()
+    ))
 }
 
 /// A three-second VP9 + Opus clip at 1280×720, like the 4K-only formats large sites serve.

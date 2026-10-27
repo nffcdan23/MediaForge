@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { bytes, conversionSpeed, dayTitle, duration, fileName, percent, remaining, speed } from "./format";
 import { expectsConversionNote, jobStatusText } from "./status";
-import type { Job } from "../api/types";
+import { imageQualityName, outputBadge, outputSummary } from "./options";
+import type { Job, Resolution, Settings } from "../api/types";
 
 describe("formatting", () => {
   it("formats durations", () => {
@@ -95,5 +96,37 @@ describe("job status lines", () => {
     expect(expectsConversionNote("video", "h264", resolution, 1080)).toBe(false);
     expect(expectsConversionNote("video", "original", resolution, 2160)).toBe(false);
     expect(expectsConversionNote("audio", "h264", resolution, 2160)).toBe(false);
+  });
+});
+
+describe("images", () => {
+  it("names image output the way the backend does", () => {
+    const jpg = { type: "image", format: "jpg", quality: 90 } as const;
+    const png = { type: "image", format: "png", quality: 70 } as const;
+    expect(outputSummary(jpg)).toBe("JPG · High quality");
+    expect(outputSummary(png)).toBe("PNG · Lossless");
+    expect(outputBadge(png)).toBe("PNG");
+    expect(imageQualityName(95)).toBe("Maximum");
+    expect(jobStatusText(job({ output: jpg, state: { type: "converting" } }))).toBe("Converting to JPG");
+    expect(jobStatusText(job({ output: jpg, state: { type: "completed" }, outputSize: 245_000 }))).toBe("JPG · High quality · 245 kB");
+  });
+
+  it("turns an image link into an image download in the saved format", async () => {
+    const { outputFor, conversionNoteApplies } = await import("../state/downloads");
+    const settings = {
+      downloadMode: "video",
+      audioFormat: "mp3",
+      audioBitrate: 320,
+      sampleRate: 0,
+      bitDepth: 16,
+      videoQuality: 1080,
+      videoCompatibility: "h264",
+      imageFormat: "png",
+      imageQuality: 80,
+    } as unknown as Settings;
+    const picture = { image: { format: "WebP", width: 640, height: 480, size: 1000 }, conversionExpected: {}, hasVideo: false } as unknown as Resolution;
+    expect(outputFor(settings, picture)).toEqual({ type: "image", format: "png", quality: 80 });
+    expect(conversionNoteApplies(settings, picture)).toBe(false);
+    expect(outputFor(settings, null)).toEqual({ type: "video", quality: 1080 });
   });
 });

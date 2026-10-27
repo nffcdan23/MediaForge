@@ -1,7 +1,8 @@
 # MediaForge for macOS and Windows
 
 MediaForge downloads and converts media you're authorised to use: paste a link, pick a format, get an
-edit-ready file. Built for video-production work such as pulling licensed music into a project.
+edit-ready file. Built for video-production work such as pulling licensed music into a project. It also turns
+pictures (WebP, PNG, JPEG, GIF, BMP, TIFF), downloaded or already on the computer, into JPG or PNG.
 
 This is the cross-platform version of MediaForge. It is built with [Tauri 2](https://tauri.app) (a Rust
 engine with a React interface) and runs on:
@@ -32,12 +33,15 @@ telemetry or advertising.
 - Paste a link (⇧⌘V on a Mac, Ctrl+Shift+V on Windows). MediaForge looks it up and shows the title,
   artwork, duration and what's available.
 - Choose Audio or Video, set the format and quality, then Download.
+- A link straight to a picture (a `.webp` file, say) shows the picture instead: choose JPG or PNG, then
+  Download.
 - Paste several links, one per line, to queue them all. A playlist or feed link offers every item.
 
 **Conversions.**
-- Drop audio or video files or folders onto the window, or use Choose Files… (⌘O / Ctrl+O).
-- On a Mac, right-click a file in Finder and choose Open With ▸ MediaForge. On Windows, use Open with ▸
-  MediaForge in File Explorer.
+- Drop audio, video or image files or folders onto the window, or use Choose Files… (⌘O / Ctrl+O). Audio
+  and video use the audio settings; pictures use the image settings.
+- On a Mac, right-click a file (including a `.webp` picture) in Finder and choose Open With ▸ MediaForge.
+  On Windows, use Open with ▸ MediaForge in File Explorer.
 - Originals are never changed.
 
 **History.**
@@ -54,6 +58,13 @@ notifications, appearance, and the status of the helper tools.
 | WAV, FLAC, AIFF | 16- or 24-bit |
 | All audio | Source sample rate, 44.1 kHz or 48 kHz |
 | MP4 video | Best available, or capped at 4K (2160p) / 1440p / 1080p / 720p / 480p / 360p |
+| JPG | Maximum, high, medium or low quality; transparent areas become white |
+| PNG | Lossless, keeps transparency |
+
+**Pictures.** MediaForge reads a picture by what's inside it, not its name (browsers sometimes save a JPEG
+as `.webp`), turns phone photos the right way up and keeps their colour profile. An animation becomes its
+first frame. A picture that's already in the chosen format is kept exactly as it is. This needs neither
+yt-dlp nor FFmpeg.
 
 **4K.** Above 1080p, large sites usually offer only VP9 or AV1 video, which most players and editing apps
 can't open. MediaForge converts those downloads to H.264 (or HEVC) with the computer's own video encoder:
@@ -74,7 +85,7 @@ src/                     React + TypeScript interface (Vite)
   styles/                Palette and layout
 src-tauri/               Rust
   src/engine/            Job queue, download/convert pipeline, output files
-  src/media/             yt-dlp and FFmpeg drivers, metadata, video conversion rules
+  src/media/             yt-dlp and FFmpeg drivers, metadata, video conversion rules, images and image links
   src/process/           Subprocess runner (process groups / Job Objects), sanitised environment
   src/store/             Settings and history (and the one-time import from the Swift app)
   src/support/           Link validation, file-name sanitising, formatting

@@ -7,7 +7,7 @@ import { api } from "./api/commands";
 import type { Section } from "./api/types";
 import { Segmented, ToolbarButton } from "./components/Controls";
 import { BrandGradientDefs, HistoryIcon } from "./components/Icons";
-import { AlertDialog, ConfirmationDialog, LogPopover, TermsSheet, VideoPreview } from "./components/Overlays";
+import { AlertDialog, ConfirmationDialog, FilePreview, LogPopover, TermsSheet } from "./components/Overlays";
 import { PlayerBar } from "./components/PlayerBar";
 import { isPending } from "./lib/status";
 import { chooseFilesToConvert, confirmClearHistory, navigate, openDestination } from "./state/actions";
@@ -90,7 +90,7 @@ export function App() {
         )}
       </main>
       {showingTerms && <TermsSheet />}
-      <VideoPreview />
+      <FilePreview />
       <LogPopover />
       <ConfirmationDialog />
       <AlertDialog />
@@ -208,6 +208,7 @@ function HistoryToolbar() {
           { value: "all", label: "All" },
           { value: "audio", label: "Audio" },
           { value: "video", label: "Video" },
+          { value: "image", label: "Images" },
           { value: "failed", label: "Failed" },
         ]}
       />

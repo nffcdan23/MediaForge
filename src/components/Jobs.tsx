@@ -1,11 +1,27 @@
-// Job rows and the queue list shared by Downloads and Conversions (JobRow.swift), plus the audio pickers and
-// the missing-tools banner.
+// Job rows and the queue list shared by Downloads and Conversions (JobRow.swift), plus the audio and image
+// pickers and the missing-tools banner.
 
-import { AudioWaveform, Copy, Eye, Film, Link, RotateCw, Search, TextAlignStart, Trash, TriangleAlert, Wrench, X } from "lucide-react";
+import { AudioWaveform, Copy, Eye, Film, Image as ImageIcon, Link, RotateCw, Search, TextAlignStart, Trash, TriangleAlert, Wrench, X } from "lucide-react";
 import { useMemo, type ReactNode } from "react";
 import { api } from "../api/commands";
-import type { Job, JobKind } from "../api/types";
-import { audioFormats, bitDepthName, bitDepths, bitrateName, bitrates, formatName, isLossy, outputBadge, outputSummary, sampleRateName, sampleRates } from "../lib/options";
+import type { Job, JobKind, OutputSpec } from "../api/types";
+import {
+  audioFormats,
+  bitDepthName,
+  bitDepths,
+  bitrateName,
+  bitrates,
+  formatName,
+  imageFormatName,
+  imageFormats,
+  imageQualities,
+  imageQualityName,
+  isLossy,
+  outputBadge,
+  outputSummary,
+  sampleRateName,
+  sampleRates,
+} from "../lib/options";
 import { previewLabel, revealLabel } from "../lib/platform";
 import { isFinished, isPending, jobStatusText } from "../lib/status";
 import { copy, preview, reveal, showError, updateSettings } from "../state/actions";
@@ -21,6 +37,13 @@ function thumbnailFor(job: Job) {
   return job.outputPath ? { kind: "file" as const, path: job.outputPath } : null;
 }
 
+/** The placeholder artwork for a kind of output. */
+export function OutputIcon({ output, size }: { output: OutputSpec; size: number }) {
+  if (output.type === "audio") return <AudioWaveform size={size} color="url(#brand-gradient)" />;
+  if (output.type === "image") return <ImageIcon size={size} color="url(#brand-gradient)" />;
+  return <Film size={size} color="url(#brand-gradient)" />;
+}
+
 /** A card for one download or conversion, with live progress and the actions that make sense for its state. */
 export function JobRow({ job }: { job: Job }) {
   const isAudio = job.output.type === "audio";
@@ -29,7 +52,7 @@ export function JobRow({ job }: { job: Job }) {
   const failed = job.state.type === "failed" ? job.state.error : null;
   const canRetry = job.state.type === "cancelled" || (failed?.retryable ?? false);
 
-  const doPreview = () => preview(job.outputPath, job.title, job.detail ?? outputSummary(job.output), job.thumbnailUrl, isAudio);
+  const doPreview = () => preview(job.outputPath, job.title, job.detail ?? outputSummary(job.output), job.thumbnailUrl, job.output.type);
   const showLog = (x: number, y: number) => app.set({ log: { jobId: job.id, anchor: { x, y } } });
 
   const { onContextMenu, menu } = useContextMenu(() =>
@@ -50,7 +73,7 @@ export function JobRow({ job }: { job: Job }) {
     <div className="job-row card" onContextMenu={onContextMenu}>
       <Thumbnail
         source={thumbnailFor(job)}
-        icon={isAudio ? <AudioWaveform size={22} color="url(#brand-gradient)" /> : <Film size={22} color="url(#brand-gradient)" />}
+        icon={<OutputIcon output={job.output} size={22} />}
         duration={job.duration}
         completed={job.state.type === "completed"}
       />
@@ -195,6 +218,37 @@ export function AudioOptionsControls() {
           onChange={(sampleRate) => void updateSettings({ sampleRate })}
         />
       </OptionField>
+    </div>
+  );
+}
+
+/** Format and JPG quality menus for images, bound to the saved preferences. */
+export function ImageOptionsControls() {
+  const settings = useSettings();
+  return (
+    <div className="option-row">
+      <OptionField title="Format">
+        <Popup
+          label="Image format"
+          value={settings.imageFormat}
+          options={imageFormats.map((f) => ({ value: f, label: imageFormatName(f) }))}
+          onChange={(imageFormat) => void updateSettings({ imageFormat })}
+        />
+      </OptionField>
+      {settings.imageFormat === "jpg" ? (
+        <OptionField title="Quality">
+          <Popup
+            label="JPG quality"
+            value={settings.imageQuality}
+            options={imageQualities.map((q) => ({ value: q, label: imageQualityName(q) }))}
+            onChange={(imageQuality) => void updateSettings({ imageQuality })}
+          />
+        </OptionField>
+      ) : (
+        <OptionField title="Quality">
+          <span className="static">Lossless</span>
+        </OptionField>
+      )}
     </div>
   );
 }

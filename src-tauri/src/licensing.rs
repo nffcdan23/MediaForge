@@ -24,6 +24,8 @@ pub enum AppFeature {
     AudioDownload,
     /// Saving video from a link.
     VideoDownload,
+    /// Saving an image from a link, as JPG or PNG.
+    ImageDownload,
     /// Queueing several links, a playlist or a feed in one go.
     BatchDownload,
     /// Converting files already on the computer.
@@ -33,8 +35,8 @@ pub enum AppFeature {
 }
 
 impl AppFeature {
-    pub const ALL: [AppFeature; 5] =
-        [Self::AudioDownload, Self::VideoDownload, Self::BatchDownload, Self::LocalConversion, Self::LosslessAudio];
+    pub const ALL: [AppFeature; 6] =
+        [Self::AudioDownload, Self::VideoDownload, Self::ImageDownload, Self::BatchDownload, Self::LocalConversion, Self::LosslessAudio];
 
     /// The features a piece of work depends on. The one place that links what the engine does to what a
     /// licence can grant.
@@ -43,6 +45,7 @@ impl AppFeature {
         match (source, output) {
             (JobSource::Remote(_), OutputSpec::Audio(_)) => features.insert(Self::AudioDownload),
             (JobSource::Remote(_), OutputSpec::Video(_)) => features.insert(Self::VideoDownload),
+            (JobSource::Remote(_), OutputSpec::Image(_)) => features.insert(Self::ImageDownload),
             (JobSource::File(_), _) => features.insert(Self::LocalConversion),
         };
         if let OutputSpec::Audio(options) = output
@@ -395,6 +398,9 @@ mod tests {
         let video = OutputSpec::Video(VideoOptions { quality: VideoQuality::Best });
         assert_eq!(AppFeature::required_for(&remote, &mp3), BTreeSet::from([AppFeature::AudioDownload]));
         assert_eq!(AppFeature::required_for(&remote, &video), BTreeSet::from([AppFeature::VideoDownload]));
+        let jpg = OutputSpec::Image(crate::models::ImageOptions::default());
+        assert_eq!(AppFeature::required_for(&remote, &jpg), BTreeSet::from([AppFeature::ImageDownload]));
+        assert_eq!(AppFeature::required_for(&file, &jpg), BTreeSet::from([AppFeature::LocalConversion]));
         assert_eq!(AppFeature::required_for(&file, &flac), BTreeSet::from([AppFeature::LocalConversion, AppFeature::LosslessAudio]));
         assert!(AppFeature::required_to_queue([(&remote, &mp3), (&remote, &mp3)]).contains(&AppFeature::BatchDownload));
         assert!(!AppFeature::required_to_queue([(&file, &mp3), (&file, &mp3)]).contains(&AppFeature::BatchDownload));

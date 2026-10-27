@@ -97,8 +97,8 @@ GitHub route does.
 
 | What | Where |
 | --- | --- |
-| Version shown to people (1.1.0) | `version` in `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` and `package.json` (keep them equal) |
-| Build number (4) | `bundle.macOS.bundleVersion` in `src-tauri/tauri.conf.json`. Raise it for every build given to anyone; macOS and a future updater use it to tell builds apart |
+| Version shown to people (1.2.0) | `version` in `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` and `package.json` (keep them equal) |
+| Build number (5) | `bundle.macOS.bundleVersion` in `src-tauri/tauri.conf.json`. Raise it for every build given to anyone; macOS and a future updater use it to tell builds apart |
 | Identifier | `uk.co.c-2.MediaForge`, shared with the Swift app so it replaces it. Never change it after release: settings, notification permissions and Windows' uninstall entry depend on it |
 
 ## Updating a bundled tool

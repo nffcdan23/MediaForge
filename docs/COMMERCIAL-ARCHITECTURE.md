@@ -115,7 +115,7 @@ must be reworded when sign-in ships. The new wording must say exactly what is se
 | `DeviceActivationManaging` | Does this device hold a seat? Take one, give it back |
 
 Supporting types:
-- `AppFeature` (audio download, video download, batch, local conversion, lossless);
+- `AppFeature` (audio download, video download, image download, batch, local conversion, lossless);
 - `UsageLimits`;
 - `Entitlements`, which ignores feature names it doesn't know, so an older app accepts a newer service's
   tokens;

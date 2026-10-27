@@ -24,11 +24,12 @@ through events.
 │ engine/       queue.rs (scheduling, cancel, retry) · pipeline.rs · job.rs      │
 │               output_files.rs (work folders, destination, no-clobber moves)    │
 │ media/        ytdlp.rs · ffmpeg.rs · video.rs (encoders) · metadata.rs         │
+│               image.rs (JPG/PNG, in-process) · image_link.rs (picture links)   │
 │ process/      runner (timeouts, output caps, tree kill) · env.rs · lines.rs    │
 │ store/        settings.json · history.json · legacy.rs (import from Swift app) │
 │ support/      url_validator.rs · filename.rs · format.rs                       │
 │ tools.rs      locating yt-dlp, FFmpeg, FFprobe (bundled → chosen → installed)  │
-│ artwork.rs    thumbnails, video frames, cover art, waveforms                   │
+│ artwork.rs    thumbnails, video frames, cover art, picture previews, waveforms │
 │ licensing.rs  licence/entitlement/activation interfaces (inactive)             │
 └──────────────────────────────┬─────────────────────────────────────────────────┘
                                │ argument vectors, never a shell
@@ -68,7 +69,9 @@ Every command validates its input instead of trusting the web view:
 - tool paths through `validate_executable`;
 - files the interface asks to open, reveal or play must be outputs the queue or History produced
   (`AppState::is_known_output`);
-- thumbnails of local files are limited to media the user added.
+- thumbnails of local files are limited to media the user added;
+- remote artwork is fetched only for addresses that came from yt-dlp, a picture link that was looked up, a
+  job or History.
 
 | Event | Payload |
 | --- | --- |
@@ -105,6 +108,30 @@ FFmpeg always runs with:
 - `file:` paths;
 - `-n` (never overwrite);
 - `-nostdin`.
+
+## Pictures
+
+Images don't go through yt-dlp or FFmpeg.
+
+- **Converting** (`media/image.rs`) uses the `image` crate, whose decoders are memory-safe Rust, inside
+  MediaForge on a worker thread.
+  - Files are identified from their first bytes, not their extension.
+  - Decoding is capped at 32,768 pixels a side, 120 megapixels and 1 GB of memory.
+  - EXIF orientation is applied. The ICC profile is copied when it matches the output's colour space.
+  - For JPG, alpha is composited onto white.
+  - A file already in the target format is copied unchanged.
+- **Picture links** (`media/image_link.rs`). yt-dlp's generic extractor reports any file that isn't a web
+  page as a "direct video", so MediaForge checks for pictures itself:
+  - Links whose address ends in an image extension are checked before yt-dlp is consulted.
+  - Links yt-dlp describes as a generic direct link are checked after it.
+  - The check reads only the start of the file.
+  - Downloads use a fresh `reqwest` client for each request: no cookies, `MediaForge/<version>` as the user
+    agent, certificates verified and five redirects at most.
+  - They honour the size and speed limits in Settings, with a 200 MB ceiling and 30-second stall and
+    30-minute overall timeouts.
+  - The content is checked as it arrives, so a web page or video is abandoned after its first bytes.
+  - In a batch of links queued as audio or video, a picture link becomes a picture in the image format from
+    Settings, whether the address gives it away or yt-dlp hands back a file that turns out to be one.
 
 ## Tools in the installers
 

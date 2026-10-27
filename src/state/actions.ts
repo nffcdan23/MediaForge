@@ -2,7 +2,7 @@
 
 import { api, asError } from "../api/commands";
 import { on } from "../api/events";
-import type { Appearance, ErrorPayload, Section, Settings } from "../api/types";
+import type { Appearance, ErrorPayload, OutputSpec, Section, Settings } from "../api/types";
 import { useKiloLabel } from "../lib/format";
 import { setPlatform } from "../lib/platform";
 import { downloads } from "./downloads";
@@ -75,13 +75,13 @@ export const openDestination = () => api.openDestination().catch(showError);
 export const reveal = (path: string | null | undefined) => (path ? api.revealPath(path).catch(showError) : undefined);
 export const copy = (text: string) => api.copyText(text).catch(showError);
 
-/** Preview a finished file: audio plays in the bar along the bottom, video in a preview window. */
-export function preview(path: string | null | undefined, title: string, subtitle: string | null, artwork: string | null, isAudio: boolean) {
+/** Preview a finished file: audio plays in the bar along the bottom, video and pictures in a preview window. */
+export function preview(path: string | null | undefined, title: string, subtitle: string | null, artwork: string | null, kind: OutputSpec["type"]) {
   if (!path) return;
-  if (isAudio) {
+  if (kind === "audio") {
     player.toggle({ path, title, subtitle, artwork });
   } else {
-    app.set({ videoPreview: { path, title } });
+    app.set({ filePreview: { path, title, kind } });
   }
 }
 
@@ -133,9 +133,10 @@ export async function connect() {
           player.setMuted(true);
           player.toggle({ path: job.outputPath, title: job.title, subtitle: job.detail, artwork: job.thumbnailUrl });
         }
-      } else if (debug.action === "videoPreview") {
-        const job = [...app.get().jobs].reverse().find((j) => j.state.type === "completed" && j.output.type === "video");
-        if (job?.outputPath) app.set({ videoPreview: { path: job.outputPath, title: job.title, muted: true } });
+      } else if (debug.action === "videoPreview" || debug.action === "imagePreview") {
+        const kind = debug.action === "videoPreview" ? "video" : "image";
+        const job = [...app.get().jobs].reverse().find((j) => j.state.type === "completed" && j.output.type === kind);
+        if (job?.outputPath) app.set({ filePreview: { path: job.outputPath, title: job.title, kind, muted: true } });
       } else if (debug.action === "terms") {
         app.set({ showingTerms: true });
       } else if (debug.action.startsWith("log:")) {

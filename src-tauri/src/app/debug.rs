@@ -10,8 +10,8 @@
 //! - `MEDIAFORGE_DEBUG_SECTION`: downloads, conversions, history or settings.
 //! - `MEDIAFORGE_DEBUG_WINDOW_SIZE`: `WIDTHxHEIGHT` in points.
 //! - `MEDIAFORGE_DEBUG_SCROLL_TO_END=1`: scroll the current screen to its bottom.
-//! - `MEDIAFORGE_DEBUG_ACTION`: a UI action to perform (`terms`, `log:<n>`, `previewMuted`, `videoPreview`), at
-//!   `MEDIAFORGE_DEBUG_ACTION_AT` seconds after the window is ready.
+//! - `MEDIAFORGE_DEBUG_ACTION`: a UI action to perform (`terms`, `log:<n>`, `previewMuted`, `videoPreview`,
+//!   `imagePreview`), at `MEDIAFORGE_DEBUG_ACTION_AT` seconds after the window is ready.
 //! - `MEDIAFORGE_DEBUG_SNAPSHOT`: path prefix for PNGs of the window (macOS).
 //! - `MEDIAFORGE_DEBUG_SNAPSHOT_AT`: comma-separated seconds after launch at which to take them.
 //! - `MEDIAFORGE_DEBUG_REPORT`: seconds after launch at which to print queue, tools and licensing state.

@@ -9,6 +9,9 @@ export type SampleRate = 0 | 44100 | 48000;
 export type BitDepth = 16 | 24;
 export type VideoQuality = 0 | 2160 | 1440 | 1080 | 720 | 480 | 360;
 export type VideoCompatibility = "h264" | "hevc" | "original";
+export type ImageFormat = "jpg" | "png";
+/** JPEG quality, 1–100. */
+export type ImageQuality = 95 | 90 | 80 | 70;
 export type DownloadMode = "audio" | "video";
 export type Appearance = "dark" | "light" | "system";
 export type Section = "downloads" | "conversions" | "history" | "settings";
@@ -23,7 +26,12 @@ export interface AudioOptions {
   bitDepth: BitDepth;
 }
 
-export type OutputSpec = ({ type: "audio" } & AudioOptions) | { type: "video"; quality: VideoQuality };
+export interface ImageOptions {
+  format: ImageFormat;
+  quality: ImageQuality;
+}
+
+export type OutputSpec = ({ type: "audio" } & AudioOptions) | { type: "video"; quality: VideoQuality } | ({ type: "image" } & ImageOptions);
 
 export interface Settings {
   destinationPath: string;
@@ -34,6 +42,8 @@ export interface Settings {
   bitDepth: BitDepth;
   videoQuality: VideoQuality;
   videoCompatibility: VideoCompatibility;
+  imageFormat: ImageFormat;
+  imageQuality: ImageQuality;
   maxConcurrentJobs: number;
   notificationsEnabled: boolean;
   embedMetadata: boolean;
@@ -181,6 +191,16 @@ export interface Resolution {
   qualityOptions: VideoQuality[];
   conversionExpected: Record<string, boolean>;
   entries: PlaylistEntry[];
+  /** Set when the link is a picture rather than audio or video. */
+  image: ImageDetails | null;
+}
+
+export interface ImageDetails {
+  /** "WebP", "PNG" and so on. */
+  format: string;
+  width: number | null;
+  height: number | null;
+  size: number | null;
 }
 
 export interface DownloadItem {

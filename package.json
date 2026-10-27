@@ -1,7 +1,7 @@
 {
   "name": "mediaforge",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Download and convert media you're authorised to use. macOS and Windows.",
   "license": "UNLICENSED",
   "type": "module",

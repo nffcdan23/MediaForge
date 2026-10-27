@@ -13,7 +13,7 @@ use crate::engine::job::{Job, JobKind, JobProgress, JobSnapshot, JobState};
 use crate::engine::pipeline;
 use crate::error::{Failure, MediaForgeError};
 use crate::media::video::EncoderCache;
-use crate::models::{DownloadLimits, VideoCompatibility};
+use crate::models::{DownloadLimits, ImageOptions, VideoCompatibility};
 use crate::tools::Toolchain;
 
 /// Settings captured at the moment a job starts, so changing preferences mid-run can't affect it.
@@ -25,6 +25,8 @@ pub struct JobEnvironment {
     pub embed_metadata: bool,
     /// What to do with video most players and editors can't open.
     pub video_compatibility: VideoCompatibility,
+    /// What image links in a batch become (single links and files carry their own choice).
+    pub image_options: ImageOptions,
     pub work_root: PathBuf,
 }
 

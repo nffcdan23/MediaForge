@@ -19,6 +19,11 @@ import {
   compatibilityName,
   formatDetail,
   formatName,
+  imageFormatDetail,
+  imageFormatName,
+  imageFormats,
+  imageQualities,
+  imageQualityName,
   qualityName,
   rateLimitName,
   rateLimits,
@@ -129,6 +134,30 @@ export function SettingsScreen() {
             value={settings.videoCompatibility}
             options={compatibilities.map((c) => ({ value: c, label: compatibilityName(c) }))}
             onChange={(videoCompatibility) => void updateSettings({ videoCompatibility })}
+          />
+        </Row>
+      </Section>
+
+      <Section
+        title="Images"
+        footer="Used for picture links and for WebP, PNG, JPEG, GIF, BMP and TIFF files you convert. JPG has no transparency, so transparent areas become white. A picture already in the format you chose is kept exactly as it is, and the first frame of an animation is used."
+      >
+        <Row label="Format">
+          <Popup
+            borderless
+            label="Image format"
+            value={settings.imageFormat}
+            options={imageFormats.map((f) => ({ value: f, label: `${imageFormatName(f)} — ${imageFormatDetail(f)}` }))}
+            onChange={(imageFormat) => void updateSettings({ imageFormat })}
+          />
+        </Row>
+        <Row label="JPG quality">
+          <Popup
+            borderless
+            label="JPG quality"
+            value={settings.imageQuality}
+            options={imageQualities.map((q) => ({ value: q, label: `${imageQualityName(q)} (${q}%)` }))}
+            onChange={(imageQuality) => void updateSettings({ imageQuality })}
           />
         </Row>
       </Section>

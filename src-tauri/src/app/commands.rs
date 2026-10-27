@@ -20,10 +20,11 @@ use crate::engine::job::{Job, JobKind, JobSnapshot, JobSource};
 use crate::engine::media_files;
 use crate::error::{ErrorPayload, Failure, MediaForgeError};
 use crate::licensing::LicensingSummary;
+use crate::media::image_link::{self, Probe};
 use crate::media::metadata::PlaylistEntry;
 use crate::media::video;
 use crate::media::ytdlp::YtDlp;
-use crate::models::{AudioOptions, OutputSpec, Section, VideoQuality};
+use crate::models::{OutputSpec, Section, VideoQuality};
 use crate::store::history::HistoryItem;
 use crate::store::settings::Settings;
 use crate::support::url_validator::{self, ValidatedUrl};
@@ -274,18 +275,37 @@ pub struct Resolution {
     /// For each offered quality, whether the download will need converting to open in most apps.
     pub conversion_expected: HashMap<String, bool>,
     pub entries: Vec<PlaylistEntry>,
+    /// Set when the link is a picture rather than audio or video.
+    pub image: Option<ImageDetails>,
 }
 
-/// Looks a link up with yt-dlp. A newer lookup cancels an older one still running.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImageDetails {
+    /// "WebP", "PNG" and so on.
+    pub format: &'static str,
+    pub width: Option<u32>,
+    pub height: Option<u32>,
+    pub size: Option<u64>,
+}
+
+/// Looks a link up: an image file directly, anything else with yt-dlp. A newer lookup cancels an older one
+/// still running.
 #[tauri::command]
 pub async fn resolve_link(url: String, state: AppStateRef<'_>) -> CommandResult<Resolution> {
     let url = url_validator::validate(&url).map_err(|e| simple("Invalid link", e.message()))?;
-    let toolchain = state.tools.toolchain();
-    let executable = toolchain.ytdlp.clone().ok_or_else(|| failure(MediaForgeError::ToolMissing(Tool::YtDlp)))?;
     let token = CancellationToken::new();
     if let Some(previous) = state.resolver.lock().unwrap().replace(token.clone()) {
         previous.cancel();
     }
+    // yt-dlp would call an image file a video, so an address that names one is checked first.
+    if image_link::looks_like_image(&url)
+        && let Some(resolution) = image_resolution(&state, &url, &token, true).await?
+    {
+        return Ok(resolution);
+    }
+    let toolchain = state.tools.toolchain();
+    let executable = toolchain.ytdlp.clone().ok_or_else(|| failure(MediaForgeError::ToolMissing(Tool::YtDlp)))?;
     let service = YtDlp {
         executable,
         ffmpeg_directory: toolchain.ffmpeg.as_ref().and_then(|p| p.parent().map(Path::to_path_buf)),
@@ -297,6 +317,14 @@ pub async fn resolve_link(url: String, state: AppStateRef<'_>) -> CommandResult<
         Err(Failure::Cancelled) => return Err(cancelled()),
         Err(Failure::Error(error)) => return Err(failure(error)),
     };
+    // Any file that isn't a web page comes back from yt-dlp as a "direct link"; it may be a picture without
+    // a file name in its address.
+    if !metadata.is_playlist
+        && metadata.extractor.as_deref().is_some_and(|e| e.eq_ignore_ascii_case("generic"))
+        && let Some(resolution) = image_resolution(&state, &url, &token, false).await?
+    {
+        return Ok(resolution);
+    }
     if let Some(thumbnail) = &metadata.thumbnail_url {
         state.known_thumbnails.lock().unwrap().insert(thumbnail.clone());
     }
@@ -320,7 +348,42 @@ pub async fn resolve_link(url: String, state: AppStateRef<'_>) -> CommandResult<
         quality_options,
         conversion_expected,
         entries: metadata.playlist_entries.clone(),
+        image: None,
     })
+}
+
+/// Checks whether a link is an image. With `certain`, failures to reach it are reported; otherwise (yt-dlp
+/// has already found something there) they just mean "not an image".
+async fn image_resolution(
+    state: &AppState,
+    url: &ValidatedUrl,
+    token: &CancellationToken,
+    certain: bool,
+) -> CommandResult<Option<Resolution>> {
+    let link = match image_link::probe(url, token).await {
+        Ok(Probe::Image(link)) => link,
+        Ok(Probe::NotImage) => return Ok(None),
+        Err(Failure::Cancelled) => return Err(cancelled()),
+        Err(Failure::Error(error @ MediaForgeError::UnsupportedImage(_))) => return Err(failure(error)),
+        Err(Failure::Error(error)) => return if certain { Err(failure(error)) } else { Ok(None) },
+    };
+    // The picture itself is the artwork for the preview card.
+    state.known_thumbnails.lock().unwrap().insert(url.as_str().to_string());
+    Ok(Some(Resolution {
+        is_playlist: false,
+        url: url.as_str().into(),
+        title: link.title,
+        uploader: Some(url.host().trim_start_matches("www.").to_string()),
+        duration: None,
+        thumbnail_url: Some(url.as_str().into()),
+        source_name: None,
+        has_video: false,
+        max_video_height: None,
+        quality_options: Vec::new(),
+        conversion_expected: HashMap::new(),
+        entries: Vec::new(),
+        image: Some(ImageDetails { format: link.kind.name(), width: link.width, height: link.height, size: link.size }),
+    }))
 }
 
 #[tauri::command]
@@ -371,22 +434,33 @@ pub fn enqueue_downloads(items: Vec<DownloadItem>, output: OutputSpec, state: Ap
 
 // MARK: - Conversions
 
-/// Queues conversions for local files and folders.
-pub fn import_paths(state: &AppState, paths: &[PathBuf], options: Option<AudioOptions>) -> CommandResult<usize> {
-    if !state.tools.can_convert() {
-        return Err(simple("FFmpeg Is Required", MediaForgeError::ToolMissing(Tool::Ffmpeg).message()));
-    }
+/// Queues conversions for local files and folders: audio and video with the audio settings, images with the
+/// image settings. `output` stands in for the settings of its kind (Convert Again, from History).
+pub fn import_paths(state: &AppState, paths: &[PathBuf], output: Option<OutputSpec>) -> CommandResult<usize> {
     let files = media_files::collect(paths);
     if files.is_empty() {
-        return Err(simple("No Supported Media", "MediaForge couldn't find any audio or video files in what you added."));
+        return Err(simple("No Supported Media", "MediaForge couldn't find any audio, video or image files in what you added."));
     }
-    let options = options.unwrap_or_else(|| state.settings().audio_options());
+    // Images are converted by MediaForge itself; audio and video need FFmpeg.
+    if files.iter().any(|f| !media_files::is_image(f)) && !state.tools.can_convert() {
+        return Err(simple("FFmpeg Is Required", MediaForgeError::ToolMissing(Tool::Ffmpeg).message()));
+    }
+    let settings = state.settings();
+    let audio = match output {
+        Some(OutputSpec::Audio(options)) => options,
+        _ => settings.audio_options(),
+    };
+    let image = match output {
+        Some(OutputSpec::Image(options)) => options,
+        _ => settings.image_options(),
+    };
     let jobs: Vec<Job> = files
         .into_iter()
         .map(|file| {
             let title = file.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_else(|| "Untitled".into());
             let detail = file.extension().map(|e| e.to_string_lossy().to_uppercase());
-            let mut job = Job::new(JobSource::File(file), OutputSpec::Audio(options), title);
+            let output = if media_files::is_image(&file) { OutputSpec::Image(image) } else { OutputSpec::Audio(audio) };
+            let mut job = Job::new(JobSource::File(file), output, title);
             job.detail = detail;
             job
         })
@@ -406,13 +480,17 @@ pub fn import_files(paths: Vec<String>, state: AppStateRef<'_>) -> CommandResult
 
 #[tauri::command]
 pub async fn choose_files_to_convert(folders: bool, app: AppHandle, state: AppStateRef<'_>) -> CommandResult<usize> {
-    let extensions: Vec<&str> = media_files::AUDIO_EXTENSIONS.iter().chain(media_files::VIDEO_EXTENSIONS).copied().collect();
+    let extensions: Vec<&str> =
+        media_files::AUDIO_EXTENSIONS.iter().chain(media_files::VIDEO_EXTENSIONS).chain(media_files::IMAGE_EXTENSIONS).copied().collect();
     let picked = tauri::async_runtime::spawn_blocking(move || {
         let dialog = app.dialog().file();
         if folders {
-            dialog.set_title("Choose folders of audio or video to convert").blocking_pick_folders()
+            dialog.set_title("Choose folders of audio, video or images to convert").blocking_pick_folders()
         } else {
-            dialog.set_title("Choose audio or video files to convert").add_filter("Audio and video", &extensions).blocking_pick_files()
+            dialog
+                .set_title("Choose audio, video or image files to convert")
+                .add_filter("Audio, video and images", &extensions)
+                .blocking_pick_files()
         }
     })
     .await
@@ -491,7 +569,7 @@ pub fn reveal_path(path: String, app: AppHandle, state: AppStateRef<'_>) -> Comm
 pub fn open_path(path: String, app: AppHandle, state: AppStateRef<'_>) -> CommandResult<()> {
     let target = known_file(&state, &path)?;
     if !media_files::is_supported(&target) {
-        return Err(simple("Can't Open", "Only finished audio and video files can be opened from MediaForge."));
+        return Err(simple("Can't Open", "Only finished audio, video and image files can be opened from MediaForge."));
     }
     app.opener().open_path(target.display().to_string(), None::<&str>).map_err(|e| simple("Couldn't open the file", e.to_string()))
 }
@@ -549,8 +627,8 @@ pub fn repeat_history(id: String, state: AppStateRef<'_>) -> CommandResult<Secti
         state.queue.enqueue(vec![job]);
         return Ok(Section::Downloads);
     }
-    if let (Some(path), OutputSpec::Audio(options)) = (entry.source_file_path.as_deref(), entry.output) {
-        import_paths(&state, &[PathBuf::from(path)], Some(options))?;
+    if let (Some(path), output @ (OutputSpec::Audio(_) | OutputSpec::Image(_))) = (entry.source_file_path.as_deref(), entry.output) {
+        import_paths(&state, &[PathBuf::from(path)], Some(output))?;
         return Ok(Section::Conversions);
     }
     Err(simple("Can't Repeat This Item", "The original source is no longer available."))

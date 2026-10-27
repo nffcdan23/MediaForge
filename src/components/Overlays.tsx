@@ -1,4 +1,4 @@
-// Sheets, alerts, the video preview and the log popover.
+// Sheets, alerts, the video and picture preview and the log popover.
 
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { BadgeCheck, ShieldCheck, Search, SquareArrowOutUpRight, X } from "lucide-react";
@@ -116,9 +116,9 @@ export function ConfirmationDialog() {
   );
 }
 
-/** Plays a finished video inside MediaForge: Quick Look's role on the Mac, and the same on Windows. */
-export function VideoPreview() {
-  const preview = useApp((s) => s.videoPreview);
+/** Shows a finished video or picture inside MediaForge: Quick Look's role on the Mac, and the same on Windows. */
+export function FilePreview() {
+  const preview = useApp((s) => s.filePreview);
   const [source, setSource] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -131,7 +131,7 @@ export function VideoPreview() {
       .previewSource(preview.path, false)
       .then((s) => live && setSource(convertFileSrc(s.path)))
       .catch((error) => {
-        app.set({ videoPreview: null });
+        app.set({ filePreview: null });
         showError(error);
       });
     return () => {
@@ -140,15 +140,21 @@ export function VideoPreview() {
   }, [preview]);
 
   if (!preview) return null;
-  const close = () => app.set({ videoPreview: null });
+  const close = () => app.set({ filePreview: null });
+  const isImage = preview.kind === "image";
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-label={preview.title} onClick={close}>
-      <div className="video-preview" onClick={(e) => e.stopPropagation()}>
-        {source && !failed && <video src={source} controls autoPlay playsInline muted={preview.muted} onError={() => setFailed(true)} />}
-        {failed && (
-          <div style={{ padding: 40, color: "#fff", textAlign: "center" }}>
-            This video can't be played inside MediaForge{isMac() ? "" : " on this PC"}. Open it in your video player instead.
+      <div className={`video-preview${isImage ? " image" : ""}`} onClick={(e) => e.stopPropagation()}>
+        {isImage ? (
+          <div className="stage">
+            {source && !failed && <img src={source} alt={preview.title} draggable={false} onError={() => setFailed(true)} />}
+            {failed && <PreviewFailure what="picture" opener="photo viewer" />}
           </div>
+        ) : (
+          <>
+            {source && !failed && <video src={source} controls autoPlay playsInline muted={preview.muted} onError={() => setFailed(true)} />}
+            {failed && <PreviewFailure what="video" opener="video player" />}
+          </>
         )}
         <footer>
           <span className="title">{preview.title}</span>
@@ -165,6 +171,14 @@ export function VideoPreview() {
           </button>
         </footer>
       </div>
+    </div>
+  );
+}
+
+function PreviewFailure({ what, opener }: { what: string; opener: string }) {
+  return (
+    <div style={{ padding: 40, color: "#fff", textAlign: "center" }}>
+      This {what} can't be shown inside MediaForge{isMac() ? "" : " on this PC"}. Open it in your {opener} instead.
     </div>
   );
 }

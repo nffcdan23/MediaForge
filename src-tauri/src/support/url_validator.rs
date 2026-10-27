@@ -24,6 +24,11 @@ impl ValidatedUrl {
         self.url.host_str().unwrap_or("")
     }
 
+    /// The address's path, still percent-encoded: `/media/clip.webp`.
+    pub fn path(&self) -> &str {
+        self.url.path()
+    }
+
     /// A compact label for use before the real title is known, e.g. `example.com/media/clip`.
     pub fn display_name(&self) -> String {
         let host = self.host();
@@ -224,7 +229,7 @@ fn is_plausible_host(host: &str) -> bool {
     host.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '.' || c == '_' || !c.is_ascii())
 }
 
-fn percent_decode(text: &str) -> String {
+pub fn percent_decode(text: &str) -> String {
     let bytes = text.as_bytes();
     let mut out = Vec::with_capacity(bytes.len());
     let mut index = 0;

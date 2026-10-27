@@ -131,6 +131,7 @@ impl AppState {
                     limits: settings.get().download_limits(),
                     embed_metadata: settings.get().embed_metadata,
                     video_compatibility: settings.get().video_compatibility,
+                    image_options: settings.get().image_options(),
                     work_root: work_root.clone(),
                 }
             },

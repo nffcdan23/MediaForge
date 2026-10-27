@@ -28,7 +28,8 @@ export interface AppData {
   showingTerms: boolean;
   alert: Alert | null;
   confirmation: Confirmation | null;
-  videoPreview: { path: string; title: string; muted?: boolean } | null;
+  /** A finished video or picture shown inside MediaForge (audio plays in the bar instead). */
+  filePreview: { path: string; title: string; kind: "video" | "image"; muted?: boolean } | null;
   log: { jobId: string; anchor: { x: number; y: number } } | null;
   sidebarCollapsed: boolean;
   dropActive: boolean;
@@ -74,7 +75,7 @@ export const app = new Store<AppData>({
   showingTerms: false,
   alert: null,
   confirmation: null,
-  videoPreview: null,
+  filePreview: null,
   log: null,
   sidebarCollapsed: false,
   dropActive: false,

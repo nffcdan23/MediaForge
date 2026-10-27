@@ -10,8 +10,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use crate::models::{
-    Appearance, AudioBitrate, AudioFormat, AudioOptions, BitDepth, DownloadLimits, DownloadMode, RateLimitOption, SampleRate, Section,
-    SizeLimitOption, VideoCompatibility, VideoQuality,
+    Appearance, AudioBitrate, AudioFormat, AudioOptions, BitDepth, DownloadLimits, DownloadMode, ImageFormat, ImageOptions, ImageQuality,
+    RateLimitOption, SampleRate, Section, SizeLimitOption, VideoCompatibility, VideoQuality,
 };
 use crate::tools::Tool;
 
@@ -28,6 +28,8 @@ pub struct Settings {
     pub bit_depth: BitDepth,
     pub video_quality: VideoQuality,
     pub video_compatibility: VideoCompatibility,
+    pub image_format: ImageFormat,
+    pub image_quality: ImageQuality,
     pub max_concurrent_jobs: u32,
     pub notifications_enabled: bool,
     pub embed_metadata: bool,
@@ -51,6 +53,8 @@ impl Settings {
             bit_depth: BitDepth::Pcm16,
             video_quality: VideoQuality::P1080,
             video_compatibility: VideoCompatibility::H264,
+            image_format: ImageFormat::Jpg,
+            image_quality: ImageQuality::High,
             max_concurrent_jobs: 3,
             notifications_enabled: true,
             embed_metadata: true,
@@ -104,6 +108,12 @@ impl Settings {
         if let Some(v) = pick(object, "videoCompatibility") {
             self.video_compatibility = v;
         }
+        if let Some(v) = pick::<String>(object, "imageFormat").and_then(|f| ImageFormat::parse(&f)) {
+            self.image_format = v;
+        }
+        if let Some(v) = pick(object, "imageQuality") {
+            self.image_quality = v;
+        }
         if let Some(v) = pick::<i64>(object, "maxConcurrentJobs") {
             self.max_concurrent_jobs = v.clamp(*CONCURRENCY_RANGE.start() as i64, *CONCURRENCY_RANGE.end() as i64) as u32;
         }
@@ -144,6 +154,10 @@ impl Settings {
 
     pub fn audio_options(&self) -> AudioOptions {
         AudioOptions { format: self.audio_format, bitrate: self.audio_bitrate, sample_rate: self.sample_rate, bit_depth: self.bit_depth }
+    }
+
+    pub fn image_options(&self) -> ImageOptions {
+        ImageOptions { format: self.image_format, quality: self.image_quality }
     }
 
     pub fn download_limits(&self) -> DownloadLimits {
@@ -265,17 +279,23 @@ mod tests {
         assert_eq!(defaults.audio_bitrate, AudioBitrate::Kbps320);
         assert_eq!(defaults.video_quality, VideoQuality::P1080);
         assert_eq!(defaults.video_compatibility, VideoCompatibility::H264);
+        assert_eq!(defaults.image_options(), ImageOptions { format: ImageFormat::Jpg, quality: ImageQuality::High });
         assert_eq!(defaults.max_concurrent_jobs, 3);
         assert_eq!(defaults.appearance, Appearance::Dark);
         assert!(!defaults.has_acknowledged_terms);
         assert_eq!(store.destination(), destination);
 
-        store.update(json!({"audioFormat": "flac", "bitDepth": 24, "maxConcurrentJobs": 5, "appearance": "system"}).as_object().unwrap());
+        store.update(
+            json!({"audioFormat": "flac", "bitDepth": 24, "maxConcurrentJobs": 5, "appearance": "system", "imageFormat": "png", "imageQuality": 80})
+                .as_object()
+                .unwrap(),
+        );
         let reloaded = SettingsStore::load(path, destination, || None);
         assert_eq!(reloaded.get().audio_format, AudioFormat::Flac);
         assert_eq!(reloaded.get().bit_depth, BitDepth::Pcm24);
         assert_eq!(reloaded.get().max_concurrent_jobs, 5);
         assert_eq!(reloaded.get().appearance, Appearance::System);
+        assert_eq!(reloaded.get().image_options(), ImageOptions { format: ImageFormat::Png, quality: ImageQuality::Medium });
     }
 
     #[test]
@@ -285,6 +305,7 @@ mod tests {
             &json!({
                 "audioFormat": "wma", "audioBitrate": 999, "sampleRate": "48000", "maxConcurrentJobs": 99,
                 "notificationsEnabled": "no", "videoQuality": "1440", "rateLimit": -1, "destinationPath": "",
+                "imageFormat": "webp", "imageQuality": 100,
                 "toolPaths": {"yt-dlp": "/opt/x/yt-dlp", "evil": "/bin/sh", "ffmpeg": ""}
             }),
             &destination,
@@ -296,6 +317,7 @@ mod tests {
         assert!(!settings.notifications_enabled);
         assert_eq!(settings.video_quality, VideoQuality::P1440);
         assert_eq!(settings.rate_limit, RateLimitOption::Unlimited);
+        assert_eq!(settings.image_options(), ImageOptions::default());
         assert_eq!(settings.destination_path, "/fallback");
         assert_eq!(settings.tool_paths.len(), 1);
         assert_eq!(settings.tool_overrides().get(&Tool::YtDlp).map(String::as_str), Some("/opt/x/yt-dlp"));

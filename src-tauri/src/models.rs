@@ -70,6 +70,33 @@ impl AudioFormat {
     }
 }
 
+/// Image formats MediaForge can produce.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ImageFormat {
+    Jpg,
+    Png,
+}
+
+impl ImageFormat {
+    pub const ALL: [ImageFormat; 2] = [Self::Jpg, Self::Png];
+
+    pub fn extension(self) -> &'static str {
+        match self {
+            Self::Jpg => "jpg",
+            Self::Png => "png",
+        }
+    }
+
+    pub fn display_name(self) -> String {
+        self.extension().to_uppercase()
+    }
+
+    pub fn parse(text: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|f| f.extension() == text)
+    }
+}
+
 macro_rules! numeric_option {
     ($name:ident { $($variant:ident = $value:expr),+ $(,)? }) => {
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -105,6 +132,8 @@ numeric_option!(BitDepth { Pcm16 = 16, Pcm24 = 24 });
 numeric_option!(VideoQuality { Best = 0, P2160 = 2160, P1440 = 1440, P1080 = 1080, P720 = 720, P480 = 480, P360 = 360 });
 numeric_option!(RateLimitOption { Unlimited = 0, Mbps1 = 1, Mbps2 = 2, Mbps5 = 5, Mbps10 = 10, Mbps25 = 25 });
 numeric_option!(SizeLimitOption { NoLimit = 0, Mb500 = 500, Gb1 = 1000, Gb2 = 2000, Gb5 = 5000, Gb10 = 10_000 });
+// JPEG quality on the usual 1–100 scale. PNG is lossless and has no quality setting.
+numeric_option!(ImageQuality { Maximum = 95, High = 90, Medium = 80, Low = 70 });
 
 impl AudioBitrate {
     pub fn display_name(self) -> String {
@@ -148,6 +177,17 @@ impl VideoQuality {
         let mut options = vec![Self::Best];
         options.extend(Self::ALL.iter().copied().filter(|q| q.max_height().is_some_and(|cap| cap <= height)));
         options
+    }
+}
+
+impl ImageQuality {
+    pub fn display_name(self) -> &'static str {
+        match self {
+            Self::Maximum => "Maximum",
+            Self::High => "High",
+            Self::Medium => "Medium",
+            Self::Low => "Low",
+        }
     }
 }
 
@@ -221,12 +261,36 @@ pub struct VideoOptions {
     pub quality: VideoQuality,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImageOptions {
+    pub format: ImageFormat,
+    /// Used for JPG only.
+    pub quality: ImageQuality,
+}
+
+impl Default for ImageOptions {
+    fn default() -> Self {
+        Self { format: ImageFormat::Jpg, quality: ImageQuality::High }
+    }
+}
+
+impl ImageOptions {
+    pub fn summary(&self) -> String {
+        match self.format {
+            ImageFormat::Jpg => format!("JPG · {} quality", self.quality.display_name()),
+            ImageFormat::Png => "PNG · Lossless".into(),
+        }
+    }
+}
+
 /// What a job should produce.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum OutputSpec {
     Audio(AudioOptions),
     Video(VideoOptions),
+    Image(ImageOptions),
 }
 
 impl OutputSpec {
@@ -238,6 +302,7 @@ impl OutputSpec {
         match self {
             Self::Audio(options) => options.format.extension(),
             Self::Video(_) => "mp4",
+            Self::Image(options) => options.format.extension(),
         }
     }
 
@@ -245,6 +310,7 @@ impl OutputSpec {
         match self {
             Self::Audio(options) => options.summary(),
             Self::Video(options) => format!("MP4 · {}", options.quality.short_name()),
+            Self::Image(options) => options.summary(),
         }
     }
 
@@ -252,6 +318,7 @@ impl OutputSpec {
         match self {
             Self::Audio(options) => options.format.display_name(),
             Self::Video(_) => "MP4".into(),
+            Self::Image(options) => options.format.display_name(),
         }
     }
 }
@@ -301,6 +368,9 @@ mod tests {
         let video: OutputSpec = serde_json::from_value(serde_json::json!({"type": "video", "quality": 2160})).unwrap();
         assert_eq!(video, OutputSpec::Video(VideoOptions { quality: VideoQuality::P2160 }));
         assert!(serde_json::from_value::<OutputSpec>(serde_json::json!({"type": "video", "quality": 999})).is_err());
+        let image = OutputSpec::Image(ImageOptions::default());
+        assert_eq!(serde_json::to_value(image).unwrap(), serde_json::json!({"type": "image", "format": "jpg", "quality": 90}));
+        assert!(serde_json::from_value::<OutputSpec>(serde_json::json!({"type": "image", "format": "gif", "quality": 90})).is_err());
     }
 
     #[test]
@@ -313,6 +383,9 @@ mod tests {
         assert_eq!(options.summary(), "FLAC · 24-bit · 48 kHz");
         assert_eq!(OutputSpec::Video(VideoOptions { quality: VideoQuality::P1080 }).summary(), "MP4 · 1080p");
         assert_eq!(OutputSpec::Video(VideoOptions { quality: VideoQuality::Best }).badge(), "MP4");
+        assert_eq!(OutputSpec::Image(ImageOptions::default()).summary(), "JPG · High quality");
+        let png = OutputSpec::Image(ImageOptions { format: ImageFormat::Png, quality: ImageQuality::Low });
+        assert_eq!((png.summary().as_str(), png.badge().as_str(), png.extension()), ("PNG · Lossless", "PNG", "png"));
     }
 
     #[test]

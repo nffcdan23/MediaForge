@@ -16,8 +16,8 @@ use mediaforge_lib::error::MediaForgeError;
 use mediaforge_lib::media::ffmpeg::Ffmpeg;
 use mediaforge_lib::media::ytdlp::YtDlp;
 use mediaforge_lib::models::{
-    AudioBitrate, AudioFormat, AudioOptions, BitDepth, DownloadLimits, OutputSpec, SampleRate, VideoCompatibility, VideoOptions,
-    VideoQuality,
+    AudioBitrate, AudioFormat, AudioOptions, BitDepth, DownloadLimits, ImageFormat, ImageOptions, ImageQuality, OutputSpec, SampleRate,
+    VideoCompatibility, VideoOptions, VideoQuality,
 };
 use mediaforge_lib::process::{self, ProcessRequest};
 use mediaforge_lib::support::url_validator;
@@ -104,6 +104,7 @@ fn harness_with(max: usize, video_compatibility: VideoCompatibility, limits: Dow
         limits,
         embed_metadata: true,
         video_compatibility,
+        image_options: ImageOptions::default(),
         work_root: work_root.clone(),
     };
     let queue = JobQueue::new(max, move || environment.clone(), recorder.clone());
@@ -481,4 +482,117 @@ async fn a_download_can_be_cancelled_mid_transfer_leaving_nothing_behind() {
     assert_eq!(h.queue.job(id).unwrap().state, JobState::Cancelled);
     assert!(h.work_is_clean(), "working files were left behind");
     assert!(!h.destination.join("Slow.mp3").exists());
+}
+
+// MARK: - Images (no helper tools needed)
+
+fn image_fixture(name: &str) -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/images").join(name)
+}
+
+fn image(format: ImageFormat) -> OutputSpec {
+    OutputSpec::Image(ImageOptions { format, quality: ImageQuality::High })
+}
+
+fn image_kind(path: &Path) -> mediaforge_lib::media::image::SourceKind {
+    mediaforge_lib::media::image::identify(path).expect("an image")
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn converts_webp_images_to_jpg_and_png() {
+    use mediaforge_lib::media::image::SourceKind;
+    let h = harness_with(2, VideoCompatibility::H264, DownloadLimits::default(), Toolchain::default());
+    let pictures = tempfile::tempdir().unwrap();
+    let photo = pictures.path().join("Harbour at Dusk.webp");
+    std::fs::copy(image_fixture("photo-lossy.webp"), &photo).unwrap();
+    let logo = pictures.path().join("logo.webp");
+    std::fs::copy(image_fixture("logo-alpha.webp"), &logo).unwrap();
+    let done = h
+        .run(vec![
+            convert_job(&photo, image(ImageFormat::Jpg)),
+            convert_job(&photo, image(ImageFormat::Png)),
+            convert_job(&logo, image(ImageFormat::Jpg)),
+        ])
+        .await;
+    let paths: Vec<PathBuf> = done.iter().map(assert_completed).collect();
+    let names: Vec<String> = paths.iter().map(|p| p.file_name().unwrap().to_string_lossy().into_owned()).collect();
+    assert_eq!(names, ["Harbour at Dusk.jpg", "Harbour at Dusk.png", "logo.jpg"]);
+    assert_eq!(paths.iter().map(|p| image_kind(p)).collect::<Vec<_>>(), [SourceKind::Jpeg, SourceKind::Png, SourceKind::Jpeg]);
+    assert!(done.iter().all(|j| j.output_size.unwrap_or(0) > 0));
+    // The originals are untouched.
+    assert_eq!(std::fs::read(&photo).unwrap(), std::fs::read(image_fixture("photo-lossy.webp")).unwrap());
+    assert!(h.work_is_clean());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_damaged_image_fails_clearly() {
+    let h = harness_with(1, VideoCompatibility::H264, DownloadLimits::default(), Toolchain::default());
+    let pictures = tempfile::tempdir().unwrap();
+    let broken = pictures.path().join("broken.webp");
+    let whole = std::fs::read(image_fixture("photo-lossy.webp")).unwrap();
+    std::fs::write(&broken, &whole[..60]).unwrap();
+    let done = h.run(vec![convert_job(&broken, image(ImageFormat::Jpg))]).await;
+    assert!(matches!(error_of(&done[0]), MediaForgeError::UnreadableFile(_)));
+    assert!(std::fs::read_dir(&h.destination).map(|d| d.count() == 0).unwrap_or(true));
+    assert!(h.work_is_clean());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn downloads_an_image_link_as_jpg_and_marks_it_as_downloaded() {
+    let h = harness_with(2, VideoCompatibility::H264, DownloadLimits::default(), Toolchain::default());
+    let served = tempfile::tempdir().unwrap();
+    std::fs::copy(image_fixture("photo-lossy.webp"), served.path().join("Harbour.webp")).unwrap();
+    std::fs::copy(image_fixture("logo-alpha.webp"), served.path().join("Logo.webp")).unwrap();
+    let server = LocalServer::start(served.path(), None).unwrap();
+    let done = h
+        .run(vec![
+            download_job(&server.url("Harbour.webp"), image(ImageFormat::Jpg)),
+            // Queued as audio, as a batch of links is: an image link can only become an image.
+            download_job(&server.url("Logo.webp"), audio(AudioFormat::Mp3)),
+        ])
+        .await;
+    let photo = assert_completed(&done[0]);
+    assert_eq!(photo.file_name().unwrap(), "Harbour.jpg");
+    assert_eq!(image_kind(&photo), mediaforge_lib::media::image::SourceKind::Jpeg);
+    let logo = assert_completed(&done[1]);
+    assert_eq!(logo.file_name().unwrap(), "Logo.jpg");
+    assert_eq!(done[1].output, OutputSpec::Image(ImageOptions::default()));
+    assert!(h.work_is_clean());
+    #[cfg(target_os = "macos")]
+    {
+        let marked = std::process::Command::new("/usr/bin/xattr").arg("-p").arg("com.apple.quarantine").arg(&photo).output().unwrap();
+        assert!(marked.status.success(), "the download should carry the quarantine mark");
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn image_links_respect_the_size_limit_and_missing_ones_say_so() {
+    let limits = DownloadLimits { rate_limit: None, max_file_size: Some(100) };
+    let h = harness_with(2, VideoCompatibility::H264, limits, Toolchain::default());
+    let served = tempfile::tempdir().unwrap();
+    std::fs::copy(image_fixture("logo-alpha.webp"), served.path().join("Logo.webp")).unwrap();
+    let server = LocalServer::start(served.path(), None).unwrap();
+    let done = h
+        .run(vec![
+            download_job(&server.url("Logo.webp"), image(ImageFormat::Png)),
+            download_job(&server.url("gone.png"), image(ImageFormat::Png)),
+        ])
+        .await;
+    assert_eq!(error_of(&done[0]), MediaForgeError::ExceedsSizeLimit);
+    assert_eq!(error_of(&done[1]), MediaForgeError::Unavailable);
+    assert!(h.work_is_clean());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_image_behind_a_link_without_a_file_name_still_becomes_an_image() {
+    require!(has_download_stack(), "yt-dlp");
+    let h = harness();
+    let served = tempfile::tempdir().unwrap();
+    std::fs::copy(image_fixture("photo-lossy.webp"), served.path().join("picture")).unwrap();
+    let server = LocalServer::start(served.path(), None).unwrap();
+    let done = h.run(vec![download_job(&server.url("picture"), audio(AudioFormat::Mp3))]).await;
+    let path = assert_completed(&done[0]);
+    assert_eq!(path.extension().unwrap(), "jpg");
+    assert_eq!(image_kind(&path), mediaforge_lib::media::image::SourceKind::Jpeg);
+    assert!(h.work_is_clean());
 }

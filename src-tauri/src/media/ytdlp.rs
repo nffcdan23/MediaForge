@@ -116,6 +116,9 @@ pub fn download_arguments(
             // Fetch the best audio the source has. MediaForge converts it itself so it can report progress.
             arguments.extend(strings(&["--format", "bestaudio/best"]));
         }
+        // Images are fetched by MediaForge itself (media::image_link); this is only reached if one is passed
+        // here anyway.
+        OutputSpec::Image(_) => arguments.extend(strings(&["--format", "best"])),
         OutputSpec::Video(options) => {
             // Resolution first, then prefer H.264 + AAC so the MP4 opens in every editor.
             let resolution = options.quality.max_height().map(|h| format!("res:{h}")).unwrap_or_else(|| "res".into());

@@ -45,6 +45,9 @@ The licence texts referred to below are in the same folder as this file.
 4. Interface components
    MediaForge's window is built with Tauri (MIT or Apache-2.0), React (MIT) and Lucide icons (ISC),
    which are compiled into the app, and uses Microsoft Edge WebView2, which is part of Windows.
+   Pictures are read and written with the image-rs libraries (image, image-webp, png, gif, tiff) and
+   zune-jpeg, all available under the MIT licence and also compiled in: https://github.com/image-rs
+   and https://github.com/etemesi254/zune-image.
 
 
 Source code

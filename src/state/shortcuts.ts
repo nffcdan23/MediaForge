@@ -15,7 +15,7 @@ export function installShortcuts() {
     if (event.key === "Escape") {
       const s = app.get();
       if (s.log) app.set({ log: null });
-      else if (s.videoPreview) app.set({ videoPreview: null });
+      else if (s.filePreview) app.set({ filePreview: null });
       else if (s.alert) app.set({ alert: null });
       else if (s.confirmation) app.set({ confirmation: null });
       return;

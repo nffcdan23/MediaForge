@@ -14,6 +14,9 @@ pub const AUDIO_EXTENSIONS: &[&str] = &[
 pub const VIDEO_EXTENSIONS: &[&str] =
     &["mp4", "m4v", "mov", "mkv", "webm", "avi", "flv", "wmv", "ts", "mts", "m2ts", "3gp", "mpg", "mpeg", "mxf", "ogv"];
 
+/// Images that can become JPG or PNG. "jfif" is how some browsers save JPEGs.
+pub const IMAGE_EXTENSIONS: &[&str] = &["webp", "png", "jpg", "jpeg", "jfif", "gif", "bmp", "tif", "tiff"];
+
 /// Folders macOS presents as single documents; their insides are never media to convert.
 const PACKAGE_EXTENSIONS: &[&str] = &[
     "app",
@@ -40,7 +43,11 @@ fn extension(path: &Path) -> String {
 
 pub fn is_supported(path: &Path) -> bool {
     let ext = extension(path);
-    AUDIO_EXTENSIONS.contains(&ext.as_str()) || VIDEO_EXTENSIONS.contains(&ext.as_str())
+    AUDIO_EXTENSIONS.contains(&ext.as_str()) || VIDEO_EXTENSIONS.contains(&ext.as_str()) || IMAGE_EXTENSIONS.contains(&ext.as_str())
+}
+
+pub fn is_image(path: &Path) -> bool {
+    IMAGE_EXTENSIONS.contains(&extension(path).as_str())
 }
 
 pub fn is_audio(path: &Path) -> bool {
@@ -68,6 +75,9 @@ fn is_package(path: &Path) -> bool {
 }
 
 /// Flattens a mix of files and folders into the media files they contain, in a stable order.
+///
+/// Images in a folder are taken only when the folder holds no audio or video, so dropping an album doesn't
+/// convert its cover art, while dropping a folder of pictures converts the pictures.
 pub fn collect(paths: &[PathBuf]) -> Vec<PathBuf> {
     let mut result = Vec::new();
     let mut seen = HashSet::new();
@@ -87,6 +97,9 @@ pub fn collect(paths: &[PathBuf]) -> Vec<PathBuf> {
             let mut children = Vec::new();
             walk(path, &mut children, MAX_IMPORT_COUNT * 4);
             children.sort_by(|a, b| natural_compare(&a.to_string_lossy(), &b.to_string_lossy()));
+            if children.iter().any(|child| is_supported(child) && !is_image(child)) {
+                children.retain(|child| !is_image(child));
+            }
             for child in children {
                 add(&child, &mut result);
             }
@@ -184,6 +197,22 @@ mod tests {
     }
 
     #[test]
+    fn takes_images_from_picture_folders_and_when_chosen_directly() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        std::fs::create_dir_all(root.join("Album")).unwrap();
+        std::fs::create_dir_all(root.join("Saved Images")).unwrap();
+        for name in
+            ["Album/Track 1.mp3", "Album/cover.jpg", "Saved Images/b.webp", "Saved Images/a.PNG", "Saved Images/readme.txt", "logo.webp"]
+        {
+            std::fs::write(root.join(name), "x").unwrap();
+        }
+        let found = collect(&[root.join("Album"), root.join("Saved Images"), root.join("logo.webp"), root.join("Album/cover.jpg")]);
+        let names: Vec<String> = found.iter().map(|p| p.strip_prefix(root).unwrap().to_string_lossy().replace('\\', "/")).collect();
+        assert_eq!(names, ["Album/Track 1.mp3", "Saved Images/a.PNG", "Saved Images/b.webp", "logo.webp", "Album/cover.jpg"]);
+    }
+
+    #[test]
     fn recognises_supported_extensions_case_insensitively() {
         assert!(is_supported(Path::new("/a/b.MP3")));
         assert!(is_supported(Path::new("/a/b.webm")));
@@ -191,6 +220,8 @@ mod tests {
         assert!(!is_supported(Path::new("/a/mp3")));
         assert!(is_audio(Path::new("x.Flac")));
         assert!(!is_audio(Path::new("x.mp4")));
+        assert!(is_supported(Path::new("x.WEBP")) && is_image(Path::new("x.jfif")));
+        assert!(!is_image(Path::new("x.svg")) && !is_image(Path::new("x.avif")));
     }
 
     #[test]
