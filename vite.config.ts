@@ -13,7 +13,8 @@ export default defineConfig({
   },
   build: {
     target: ["safari15", "chrome110"],
-    outDir: "dist",
+    // Not dist/: the build empties its folder first, and dist/ holds the packaged installers.
+    outDir: "frontend-dist",
     emptyOutDir: true,
     sourcemap: false,
     chunkSizeWarningLimit: 1200,

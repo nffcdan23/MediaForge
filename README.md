@@ -99,6 +99,7 @@ scripts/                 Fetch tools, build FFmpeg (macOS), package macOS/Window
 .github/workflows/       CI (tests on Windows and macOS) and installer builds
 docs/                    Everything above
 tools/, dist/            Generated: downloaded tools and packaged output (not in version control)
+frontend-dist/           Generated: the built interface, bundled into the app
 ```
 
 ## Developing
