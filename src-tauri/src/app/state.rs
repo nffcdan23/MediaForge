@@ -2,7 +2,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use chrono::Utc;
@@ -90,6 +90,8 @@ pub struct AppState {
     pub metadata_files: Mutex<HashSet<PathBuf>>,
     /// Artwork chosen on the Metadata screen and not yet saved, by ID.
     pub covers: Mutex<HashMap<String, crate::tags::CoverImage>>,
+    /// How many files on the Metadata screen have changes not yet saved, so quitting can ask first.
+    pub metadata_unsaved: AtomicUsize,
 }
 
 impl AppState {
@@ -161,6 +163,7 @@ impl AppState {
             pending_section: Mutex::new(None),
             metadata_files: Mutex::new(HashSet::new()),
             covers: Mutex::new(HashMap::new()),
+            metadata_unsaved: AtomicUsize::new(0),
         })
     }
 

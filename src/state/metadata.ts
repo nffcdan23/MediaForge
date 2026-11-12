@@ -406,6 +406,17 @@ export async function save() {
         }
         if (outcome.error) {
           failures.push(`${outcome.path.split(/[\\/]/).pop()}: ${outcome.error.message}`);
+          // Whatever did get written (tags, say, before a rename failed) is no longer an unsaved change.
+          const edit = pending[outcome.path];
+          if (edit && outcome.file) {
+            const file = outcome.file;
+            const fields = Object.fromEntries(Object.entries(edit.fields).filter(([field, value]) => (file.fields[field as TagField] ?? "") !== value));
+            const left: PendingEdit = { ...edit, fields };
+            if (left.readOnly === file.readOnly) delete left.readOnly;
+            if (left.name === splitName(file.name).stem) delete left.name;
+            if (isDirty(left)) pending[outcome.path] = left;
+            else delete pending[outcome.path];
+          }
           continue;
         }
         delete pending[outcome.path];
@@ -463,3 +474,12 @@ export function fromLocalInput(value: string): string | null {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
+
+// Closing or quitting asks first while changes are unsaved: the backend owns those dialogs, so it's told the count.
+let reportedUnsaved = 0;
+metadata.subscribe(() => {
+  const count = dirtyPaths().length;
+  if (count === reportedUnsaved) return;
+  reportedUnsaved = count;
+  void api.metadataUnsaved(count).catch(() => undefined);
+});

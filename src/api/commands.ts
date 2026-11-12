@@ -78,6 +78,7 @@ export const api = {
   metadataChooseFiles: (folders: boolean) => invoke<TagFile[]>("metadata_choose_files", { folders }),
   metadataReload: (paths: string[]) => invoke<TagFile[]>("metadata_reload", { paths }),
   metadataForget: (paths: string[]) => invoke<void>("metadata_forget", { paths }),
+  metadataUnsaved: (count: number) => invoke<void>("metadata_unsaved", { count }),
   metadataSave: (edits: MetadataEdit[]) => invoke<SaveOutcome[]>("metadata_save", { edits }),
   metadataCover: (path: string) => invoke<string | null>("metadata_cover", { path }),
   metadataChooseCover: () => invoke<CoverChoice | null>("metadata_choose_cover"),

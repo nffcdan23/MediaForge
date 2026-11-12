@@ -82,6 +82,12 @@ pub async fn metadata_reload(paths: Vec<String>, state: AppStateRef<'_>) -> Comm
     Ok(tags::read_many(paths, &tools(&state)).await)
 }
 
+/// The window reports how many files have unsaved changes, so closing or quitting can ask first.
+#[tauri::command]
+pub fn metadata_unsaved(count: usize, state: AppStateRef<'_>) {
+    state.metadata_unsaved.store(count, std::sync::atomic::Ordering::SeqCst);
+}
+
 /// Takes files off the screen; the window can no longer change them.
 #[tauri::command]
 pub fn metadata_forget(paths: Vec<String>, state: AppStateRef<'_>) {

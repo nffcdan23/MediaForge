@@ -39,6 +39,7 @@ const COMMANDS: &[&str] = &[
     "metadata_choose_files",
     "metadata_reload",
     "metadata_forget",
+    "metadata_unsaved",
     "metadata_save",
     "metadata_cover",
     "metadata_choose_cover",
