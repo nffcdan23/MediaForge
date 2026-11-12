@@ -74,6 +74,11 @@ fn is_package(path: &Path) -> bool {
     cfg!(target_os = "macos") && PACKAGE_EXTENSIONS.contains(&extension(path).as_str())
 }
 
+/// A folder macOS shows as a single document (an app, a photo library), whose insides aren't the user's files.
+pub fn is_package_directory(path: &Path) -> bool {
+    is_package(path)
+}
+
 /// Flattens a mix of files and folders into the media files they contain, in a stable order.
 ///
 /// Images in a folder are taken only when the folder holds no audio or video, so dropping an album doesn't

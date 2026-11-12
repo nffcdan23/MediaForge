@@ -2,7 +2,8 @@
 
 MediaForge downloads and converts media you're authorised to use: paste a link, pick a format, get an
 edit-ready file. Built for video-production work such as pulling licensed music into a project. It also turns
-pictures (WebP, PNG, JPEG, GIF, BMP, TIFF), downloaded or already on the computer, into JPG or PNG.
+pictures (WebP, PNG, JPEG, GIF, BMP, TIFF), downloaded or already on the computer, into JPG or PNG, and edits
+the tags and details stored in files of any kind, as a tagger such as Mp3tag does.
 
 This is the cross-platform version of MediaForge. It is built with [Tauri 2](https://tauri.app) (a Rust
 engine with a React interface) and runs on:
@@ -43,6 +44,27 @@ telemetry or advertising.
 - On a Mac, right-click a file (including a `.webp` picture) in Finder and choose Open With ▸ MediaForge.
   On Windows, use Open with ▸ MediaForge in File Explorer.
 - Originals are never changed.
+
+**Metadata.**
+- Add files or folders of any kind with the + buttons, or drop them on the window while Metadata is showing.
+- Select one file or many (Ctrl/⌘-click, Shift-click, Ctrl/⌘+A, arrow keys) and change fields in the panel on
+  the right. Where the selected files differ, a field says "Multiple values" and is left alone unless you
+  type in it.
+- What can be changed:
+  - audio (MP3, M4A, FLAC, WAV, AIFF, Ogg, Opus and more): title, artist, album, album artist, track and disc,
+    year, genre, composer, comment and artwork;
+  - MP4 and MOV video: title, artist, album, year, genre, comment, description, copyright and artwork;
+  - MKV, WebM, AVI and WMV: their tags, through FFmpeg;
+  - photos (JPEG, PNG, WebP, TIFF, HEIC): title, subject, rating, tags, comments, authors, copyright and date
+    taken, the fields File Explorer shows;
+  - PDF, Word, Excel and PowerPoint files: title, author, subject and keywords (and category and comments
+    for Office files);
+  - every file: its name, modified and created dates, and Read-only.
+- Tools (the wand): tags from file names (`%artist% - %title%`), rename from tags, number tracks in list order,
+  clear all fields.
+- Nothing is written until Save (⌘S / Ctrl+S). MP3s are saved with ID3v2.3 tags and front-cover artwork,
+  which Spotify's local files, Windows and car stereos read. Each file is written to a hidden copy beside it
+  that then replaces it, so an interrupted save can't damage it.
 
 **History.**
 - Everything finished, with search and filters.
@@ -89,6 +111,8 @@ src-tauri/               Rust
   src/process/           Subprocess runner (process groups / Job Objects), sanitised environment
   src/store/             Settings and history (and the one-time import from the Swift app)
   src/support/           Link validation, file-name sanitising, formatting
+  src/tags/              Metadata screen: audio and video tags, photo EXIF and XMP, PDF and Office properties,
+                         names and dates (safe save: hidden copy, then swap)
   src/licensing.rs       Licence interfaces (inactive: nothing is gated)
   src/app/               Tauri: commands, events, menus, window, self-test, debug hooks
   tests/engine.rs        End-to-end tests with the real tools

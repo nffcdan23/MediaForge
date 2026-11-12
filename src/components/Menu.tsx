@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent as ReactM
 
 export type MenuItem = { label: string; icon?: ReactNode; onSelect: () => void; destructive?: boolean } | "separator";
 
-/** Opens a context menu at the pointer. Returns the handler to attach and the menu to render. */
+/** Opens a context menu at the pointer (or, with `openAt`, below a button). Returns the handler to attach and the menu to render. */
 export function useContextMenu(items: () => MenuItem[]) {
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const open = (event: ReactMouseEvent) => {
@@ -12,7 +12,8 @@ export function useContextMenu(items: () => MenuItem[]) {
     setPosition({ x: event.clientX, y: event.clientY });
   };
   const menu = position ? <ContextMenu x={position.x} y={position.y} items={items()} onClose={() => setPosition(null)} /> : null;
-  return { onContextMenu: open, menu };
+  const openAt = (x: number, y: number) => setPosition({ x, y });
+  return { onContextMenu: open, openAt, menu };
 }
 
 function ContextMenu({ x, y, items, onClose }: { x: number; y: number; items: MenuItem[]; onClose: () => void }) {

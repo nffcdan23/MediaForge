@@ -44,6 +44,8 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
         .item(&item("import-folder", "Import Folder…", Some("Cmd+Shift+O"))?)
         .item(&item("paste", "Paste Link", Some("Cmd+Shift+V"))?)
         .separator()
+        .item(&item("metadata-save", "Save Metadata Changes", Some("Cmd+S"))?)
+        .separator()
         .item(&item("destination", "Open Destination Folder", Some("Cmd+Shift+D"))?)
         .separator()
         .close_window()
@@ -52,8 +54,9 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
     let view = SubmenuBuilder::new(app, "View")
         .item(&item("section-downloads", "Downloads", Some("Cmd+1"))?)
         .item(&item("section-conversions", "Conversions", Some("Cmd+2"))?)
-        .item(&item("section-history", "History", Some("Cmd+3"))?)
-        .item(&item("section-settings", "Settings", Some("Cmd+4"))?)
+        .item(&item("section-metadata", "Metadata", Some("Cmd+3"))?)
+        .item(&item("section-history", "History", Some("Cmd+4"))?)
+        .item(&item("section-settings", "Settings", Some("Cmd+5"))?)
         .separator()
         .fullscreen()
         .build()?;
@@ -78,6 +81,7 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
             "settings" | "section-settings" => state.navigate(Section::Settings),
             "section-downloads" => state.navigate(Section::Downloads),
             "section-conversions" => state.navigate(Section::Conversions),
+            "section-metadata" => state.navigate(Section::Metadata),
             "section-history" => state.navigate(Section::History),
             "destination" => {
                 let destination = state.destination();
@@ -90,7 +94,7 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
                 state.tools.refresh(None);
                 state.navigate(Section::Settings);
             }
-            other @ ("import" | "import-folder" | "paste" | "toggle-preview" | "terms") => {
+            other @ ("import" | "import-folder" | "paste" | "toggle-preview" | "terms" | "metadata-save") => {
                 state.show_window();
                 emit_menu_action(app, other);
             }

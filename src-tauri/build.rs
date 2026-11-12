@@ -36,6 +36,13 @@ const COMMANDS: &[&str] = &[
     "preview_source",
     "licensing_summary",
     "show_main_window",
+    "metadata_choose_files",
+    "metadata_reload",
+    "metadata_forget",
+    "metadata_save",
+    "metadata_cover",
+    "metadata_choose_cover",
+    "metadata_export_cover",
 ];
 
 fn main() {

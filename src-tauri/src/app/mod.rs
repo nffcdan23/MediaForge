@@ -7,6 +7,7 @@ mod debug;
 pub mod local_server;
 #[cfg(target_os = "macos")]
 mod menu;
+pub mod metadata;
 mod self_test;
 pub mod state;
 
@@ -86,6 +87,13 @@ pub fn run() {
             commands::preview_source,
             commands::licensing_summary,
             commands::show_main_window,
+            metadata::metadata_choose_files,
+            metadata::metadata_reload,
+            metadata::metadata_forget,
+            metadata::metadata_save,
+            metadata::metadata_cover,
+            metadata::metadata_choose_cover,
+            metadata::metadata_export_cover,
         ])
         .build(tauri::generate_context!())
         .expect("MediaForge couldn't start");
@@ -275,7 +283,11 @@ fn on_window_event(window: &tauri::Window, event: &WindowEvent) {
             }
         }
         WindowEvent::DragDrop(tauri::DragDropEvent::Drop { paths, .. }) => {
-            if !paths.is_empty() {
+            if paths.is_empty() {
+            } else if state.settings().selected_section == Section::Metadata {
+                // Any file can have its name and dates edited, so nothing is filtered out here.
+                metadata::add_dropped(Arc::clone(&state), paths.clone());
+            } else {
                 open_files(&state, paths.clone());
             }
         }

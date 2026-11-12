@@ -1,7 +1,8 @@
 # Verification report
 
 What was built, compiled and tested, and what remains unverified. Written 18 October 2026 for 1.1.0, the
-first cross-platform version; the 1.2.0 section (picture conversion) was added on 27 October 2026.
+first cross-platform version; the 1.2.0 section (picture conversion) was added on 27 October 2026, and the
+1.3.0 section (the Metadata screen) on 12 November 2026.
 
 **Rule followed throughout:** nothing is described as working unless it was seen working. "Configured" means
 set up but not exercised.
@@ -20,6 +21,38 @@ Version 1.2.0 (build 5):
 
 The Windows installer was built, installed, self-tested and uninstalled on GitHub's Windows machine. The copy
 in `dist/windows` is that tested artifact; its SHA-256 is beside it.
+
+## 1.3.0: metadata
+
+**What changed.**
+- A Metadata screen edits the tags and details stored in files of any kind (see the README and
+  [ARCHITECTURE.md](ARCHITECTURE.md#metadata)).
+- The installed app's self-test has a `metadata` step: it tags a copy of the MP3 it made, adds artwork,
+  renames it and reads it back.
+
+**Verified on this Mac (macOS 27, Apple silicon), 12 November 2026.**
+- Rust unit tests (142) and end-to-end tests (`tests/engine.rs`, 20; `tests/tags.rs`, 6), clippy and rustfmt;
+  TypeScript checks and interface tests (19).
+- `tests/tags.rs`, with real files made by FFmpeg and checked by ffprobe and FFmpeg:
+  - MP3 written as ID3v2.3 (with its ID3v1 updated), with artwork, read back by ffprobe; lyrics kept; decodes
+    without errors; clearing fields and artwork works.
+  - M4A, FLAC, WAV, Opus and AIFF round trips, with artwork.
+  - MP4 (index first and last) and MOV keep playing after their tags and artwork change.
+  - MKV, WebM and AVI tags rewritten through FFmpeg; no temporary files left.
+  - Renaming, new dates, Read-only, and keeping the modified date.
+- Unit tests: JPEG and PNG details (EXIF, Windows' fields, rating, date taken) round trip, and a JPEG's XMP is
+  updated while its other XMP stays; PDF properties appended with the original bytes kept; Word properties
+  changed with every other part untouched.
+- The development app, driven by its debug hooks and checked from window snapshots: adding a folder of ten
+  mixed files, multi-select editing, numbering tracks, tags from file names, saving (ffprobe confirmed the
+  tags), editing a photo's details, the rename dialog's clash warning, artwork display.
+- The self-test's `metadata` step passed on this Mac.
+
+**Still unverified in 1.3.0:**
+- File Explorer's Details tab showing the photo fields and Office properties MediaForge writes, and Spotify
+  showing its tags and artwork (ID3v2.3 with a front cover is the form both read, but neither was tried).
+- HEIC writing (little_exif supports it; no HEIC file was tested).
+- The Windows installer's run of the `metadata` self-test step (to be added here from the Build installers run).
 
 ## 1.2.0: pictures
 

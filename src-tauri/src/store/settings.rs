@@ -37,6 +37,8 @@ pub struct Settings {
     pub size_limit: SizeLimitOption,
     pub appearance: Appearance,
     pub has_acknowledged_terms: bool,
+    /// The Metadata screen leaves a file's modified date as it was when saving tags.
+    pub keep_file_dates: bool,
     /// Explicit tool locations keyed by tool id. Empty means "find it automatically".
     pub tool_paths: BTreeMap<String, String>,
     pub selected_section: Section,
@@ -62,6 +64,7 @@ impl Settings {
             size_limit: SizeLimitOption::NoLimit,
             appearance: Appearance::Dark,
             has_acknowledged_terms: false,
+            keep_file_dates: false,
             tool_paths: BTreeMap::new(),
             selected_section: Section::Downloads,
         }
@@ -122,6 +125,9 @@ impl Settings {
         }
         if let Some(v) = pick_bool(object, "embedMetadata") {
             self.embed_metadata = v;
+        }
+        if let Some(v) = pick_bool(object, "keepFileDates") {
+            self.keep_file_dates = v;
         }
         if let Some(v) = pick(object, "rateLimit") {
             self.rate_limit = v;

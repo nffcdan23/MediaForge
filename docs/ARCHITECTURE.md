@@ -28,6 +28,7 @@ through events.
 │ process/      runner (timeouts, output caps, tree kill) · env.rs · lines.rs    │
 │ store/        settings.json · history.json · legacy.rs (import from Swift app) │
 │ support/      url_validator.rs · filename.rs · format.rs                       │
+│ tags/         Metadata screen: audio/video tags, photo EXIF/XMP, PDF, Office   │
 │ tools.rs      locating yt-dlp, FFmpeg, FFprobe (bundled → chosen → installed)  │
 │ artwork.rs    thumbnails, video frames, cover art, picture previews, waveforms │
 │ licensing.rs  licence/entitlement/activation interfaces (inactive)             │
@@ -67,7 +68,10 @@ from Rust.
 Every command validates its input instead of trusting the web view:
 - links go through `url_validator`;
 - tool paths through `validate_executable`;
-- files the interface asks to open, reveal or play must be outputs the queue or History produced
+- files the interface asks to open, reveal or play must be outputs the queue or History produced;
+- files the Metadata screen changes must be ones the user added to it through the file dialog or by dropping
+  them on the window (`AppState::metadata_files`), and its artwork is chosen through the file dialog and held
+  in Rust, the window getting only an ID
   (`AppState::is_known_output`);
 - thumbnails of local files are limited to media the user added;
 - remote artwork is fetched only for addresses that came from yt-dlp, a picture link that was looked up, a
@@ -80,6 +84,8 @@ Every command validates its input instead of trusting the web view:
 | `history:changed` | The full history list (at most 1,000) |
 | `settings:changed` | Settings |
 | `tools:changed` | Tool statuses and versions |
+| `metadata:added` | Files dropped on the Metadata screen, read |
+| `metadata:progress` | Files saved so far, while the Metadata screen saves |
 | `app:navigate`, `app:menu`, `app:alert`, `app:debug` | Window-level requests |
 
 ## Processes
@@ -132,6 +138,32 @@ Images don't go through yt-dlp or FFmpeg.
   - The content is checked as it arrives, so a web page or video is abandoned after its first bytes.
   - In a batch of links queued as audio or video, a picture link becomes a picture in the image format from
     Settings, whether the address gives it away or yt-dlp hands back a file that turns out to be one.
+
+## Metadata
+
+`tags/` reads and writes what is stored inside files, for the Metadata screen. Like the rest of the engine it
+knows nothing about the window; `app/metadata.rs` holds its commands.
+
+| Files | Read and written with | Notes |
+| --- | --- | --- |
+| Audio (MP3, M4A, FLAC, WAV, AIFF, Ogg, Opus, APE, WavPack…) and MP4/MOV video | lofty | Every tag a file has is updated, so an MP3's ID3v1 can't contradict its ID3v2. MP3s are written as ID3v2.3. Frames the screen doesn't show (lyrics, ReplayGain, private frames) are kept. |
+| MKV, WebM, AVI, WMV and WMA | FFmpeg | Every stream, chapter and attachment copied (`-map 0 -c copy`); tags set with `-metadata`. |
+| JPEG, PNG, WebP, TIFF, HEIC | little_exif | EXIF, Windows' own XP fields and rating. A JPEG's XMP packet, which Windows reads first, is updated to match. |
+| PDF | lopdf | An incremental update: the original bytes are kept and a new Info dictionary (and XMP) is appended. Protected PDFs are read-only. |
+| Word, Excel, PowerPoint | zip, quick-xml | Only `docProps/core.xml` changes; every other part is copied byte for byte. |
+| Every file | the standard library | Name, modified and created dates, Read-only. |
+
+Saving is careful:
+- Each change is written to a hidden copy beside the file (`~$<name>.<random>.mediaforge.tmp`; OneDrive doesn't
+  upload names starting `~$`) and swapped in with one operation: `ReplaceFileW` on Windows, which keeps the
+  creation date, permissions and other streams, and `rename` on macOS, after which the creation date is put
+  back. A failed or interrupted save leaves the original as it was.
+- PDFs, Office files and pictures are checked to open before they replace the original.
+- Values are checked first: whole numbers for tracks and discs, 0–5 for ratings, real dates, at most 20,000
+  characters.
+- A read-only file is changed only when Read-only is turned off, which can be done in the same save.
+- Artwork the user picks is used as it is if it's a JPEG or PNG of a sensible size. Anything else (WebP, a huge
+  photo, a progressive JPEG that some players can't show) becomes a baseline JPEG at most 1,500 pixels across.
 
 ## Tools in the installers
 

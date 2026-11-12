@@ -48,6 +48,10 @@ The licence texts referred to below are in the same folder as this file.
    Pictures are read and written with the image-rs libraries (image, image-webp, png, gif, tiff) and
    zune-jpeg, all available under the MIT licence and also compiled in: https://github.com/image-rs
    and https://github.com/etemesi254/zune-image.
+   Tags, photo details and document properties are read and written with lofty and little_exif
+   (MIT or Apache-2.0), lopdf, zip and quick-xml (MIT), also compiled in:
+   https://github.com/Serial-ATA/lofty-rs, https://github.com/TechnikTobi/little_exif,
+   https://github.com/J-F-Liu/lopdf, https://github.com/zip-rs/zip2 and https://github.com/tafia/quick-xml.
 
 
 Source code

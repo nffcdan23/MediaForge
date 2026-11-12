@@ -352,6 +352,7 @@ pub enum Appearance {
 pub enum Section {
     Downloads,
     Conversions,
+    Metadata,
     History,
     Settings,
 }

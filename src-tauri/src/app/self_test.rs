@@ -416,6 +416,17 @@ async fn run(app: &AppHandle, state: &Arc<AppState>, checks: &mut Checks) {
         );
     }
 
+    // The Metadata screen's engine on this computer's file system: tags, artwork and a new name for a copy of
+    // the MP3 made above, written through the hidden-copy-and-swap path (ReplaceFileW on Windows).
+    match &mp3_output {
+        Some(mp3) => {
+            let started = Instant::now();
+            let result = metadata_check(state, mp3, &scratch).await;
+            checks.record("metadata", started, result);
+        }
+        None => checks.skip("metadata", "no MP3 was made to tag"),
+    }
+
     // Licensing is present but inactive: nothing withheld.
     let summary = state.licensing.summary();
     checks.record(
@@ -428,6 +439,48 @@ async fn run(app: &AppHandle, state: &Arc<AppState>, checks: &mut Checks) {
         },
     );
     let _ = app;
+}
+
+/// Tags a copy of an MP3 as the Metadata screen would, and reads it back.
+async fn metadata_check(state: &AppState, mp3: &Path, scratch: &Path) -> Result<String, String> {
+    use crate::tags::{self, Change, CoverChange, Field};
+    let copy = scratch.join("Self Test Tags.mp3");
+    std::fs::copy(mp3, &copy).map_err(|e| format!("couldn't copy the MP3: {e}"))?;
+    let mut png = Vec::new();
+    image::DynamicImage::ImageRgb8(image::RgbImage::from_pixel(32, 32, image::Rgb([255, 120, 40])))
+        .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+        .map_err(|e| e.to_string())?;
+    let cover = tags::prepare_cover(&png).map_err(|e| e.message)?;
+    let fields = std::collections::BTreeMap::from([
+        (Field::Title, "Self Test Title".to_string()),
+        (Field::Artist, "Zoë & Co".to_string()),
+        (Field::Track, "7".to_string()),
+    ]);
+    let tools = super::metadata::tools(state);
+    let change = Change { fields, cover: Some(CoverChange::Set(cover)), name: Some("Self Test Renamed".into()), ..Default::default() };
+    let saved = tags::save(&copy, change, &tools, false).await.map_err(|e| format!("{}: {}", e.title, e.message))?;
+    let file = tags::read(&saved, &tools).await.map_err(|e| e.message)?;
+    let header = std::fs::read(&saved).ok().and_then(|d| d.get(..4).map(<[u8]>::to_vec));
+    let leftovers = std::fs::read_dir(scratch)
+        .map(|d| d.filter_map(Result::ok).filter(|e| e.file_name().to_string_lossy().starts_with("~$")).count())
+        .unwrap_or(0);
+    let as_expected = file.fields.get(&Field::Title).map(String::as_str) == Some("Self Test Title")
+        && file.fields.get(&Field::Artist).map(String::as_str) == Some("Zoë & Co")
+        && file.fields.get(&Field::Track).map(String::as_str) == Some("7")
+        && file.cover.as_ref().is_some_and(|c| c.present)
+        && header.as_deref() == Some(b"ID3\x03".as_slice())
+        && saved.file_name().is_some_and(|n| n == "Self Test Renamed.mp3")
+        && leftovers == 0;
+    if as_expected {
+        Ok(format!("tags, artwork and a new name written ({})", file.storage.unwrap_or_default()))
+    } else {
+        Err(format!(
+            "read back {:?}, cover {:?}, header {header:?}, name {:?}, {leftovers} temporary files left",
+            file.fields,
+            file.cover,
+            saved.file_name()
+        ))
+    }
 }
 
 /// A 64×32 lossless WebP: transparent on the left, red on the right.

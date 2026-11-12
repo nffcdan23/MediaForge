@@ -560,7 +560,8 @@ fn known_file(state: &AppState, path: &str) -> CommandResult<PathBuf> {
 pub fn reveal_path(path: String, app: AppHandle, state: AppStateRef<'_>) -> CommandResult<()> {
     let candidate = PathBuf::from(&path);
     let is_tool = state.tools.statuses().iter().any(|s| s.path.as_deref() == Some(path.as_str()));
-    let target = if is_tool && candidate.is_file() { candidate } else { known_file(&state, &path)? };
+    let on_metadata_screen = state.metadata_files.lock().unwrap().contains(&candidate);
+    let target = if (is_tool || on_metadata_screen) && candidate.is_file() { candidate } else { known_file(&state, &path)? };
     app.opener().reveal_item_in_dir(&target).map_err(|e| simple("Couldn't show the file", e.to_string()))
 }
 

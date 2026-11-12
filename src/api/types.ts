@@ -14,7 +14,7 @@ export type ImageFormat = "jpg" | "png";
 export type ImageQuality = 95 | 90 | 80 | 70;
 export type DownloadMode = "audio" | "video";
 export type Appearance = "dark" | "light" | "system";
-export type Section = "downloads" | "conversions" | "history" | "settings";
+export type Section = "downloads" | "conversions" | "metadata" | "history" | "settings";
 export type RateLimit = 0 | 1 | 2 | 5 | 10 | 25;
 export type SizeLimit = 0 | 500 | 1000 | 2000 | 5000 | 10000;
 export type ToolId = "yt-dlp" | "ffmpeg" | "ffprobe";
@@ -51,6 +51,8 @@ export interface Settings {
   sizeLimit: SizeLimit;
   appearance: Appearance;
   hasAcknowledgedTerms: boolean;
+  /** The Metadata screen leaves a file's modified date alone when saving. */
+  keepFileDates: boolean;
   toolPaths: Record<string, string>;
   selectedSection: Section;
 }
@@ -221,4 +223,81 @@ export interface PreviewSource {
 export interface Alert {
   title: string;
   message: string;
+}
+
+// MARK: - Metadata screen (src-tauri/src/tags, src-tauri/src/app/metadata.rs)
+
+export type TagField =
+  | "title"
+  | "artist"
+  | "album"
+  | "albumArtist"
+  | "track"
+  | "trackTotal"
+  | "disc"
+  | "discTotal"
+  | "year"
+  | "genre"
+  | "composer"
+  | "comment"
+  | "description"
+  | "copyright"
+  | "authors"
+  | "subject"
+  | "keywords"
+  | "category"
+  | "rating"
+  | "dateTaken";
+
+export type FileKind = "audio" | "video" | "image" | "document" | "other";
+
+export interface TagCover {
+  present: boolean;
+  signature: string | null;
+  summary: string | null;
+}
+
+export interface TagFile {
+  path: string;
+  name: string;
+  kind: FileKind;
+  format: string;
+  storage: string | null;
+  size: number;
+  modified: string | null;
+  created: string | null;
+  readOnly: boolean;
+  fields: Partial<Record<TagField, string>>;
+  /** The fields this file can hold, in display order. */
+  editable: TagField[];
+  /** Present when the file can hold artwork. */
+  cover: TagCover | null;
+  details: { label: string; value: string }[];
+  note: string | null;
+  revision: string;
+}
+
+export type CoverEdit = { type: "set"; id: string } | { type: "remove" };
+
+export interface MetadataEdit {
+  path: string;
+  fields?: Partial<Record<TagField, string>>;
+  cover?: CoverEdit;
+  /** New name without the extension. */
+  name?: string;
+  modified?: string;
+  created?: string;
+  readOnly?: boolean;
+}
+
+export interface SaveOutcome {
+  path: string;
+  file: TagFile | null;
+  error: ErrorPayload | null;
+}
+
+export interface CoverChoice {
+  id: string;
+  preview: string | null;
+  summary: string | null;
 }

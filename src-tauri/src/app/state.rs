@@ -1,6 +1,6 @@
 //! The app's composition root: owns the engine and the stores, and connects them to the window.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -32,6 +32,8 @@ pub mod events {
     pub const MENU: &str = "app:menu";
     pub const ALERT: &str = "app:alert";
     pub const DEBUG: &str = "app:debug";
+    pub const METADATA_ADDED: &str = "metadata:added";
+    pub const METADATA_PROGRESS: &str = "metadata:progress";
 }
 
 pub const NOTIFICATION_ACTION_TYPE: &str = "job-finished";
@@ -84,6 +86,10 @@ pub struct AppState {
     pub frontend_ready: AtomicBool,
     /// Section to show once the window has loaded, for files opened before it was ready.
     pub pending_section: Mutex<Option<Section>>,
+    /// Files the user added to the Metadata screen: the only ones it may change.
+    pub metadata_files: Mutex<HashSet<PathBuf>>,
+    /// Artwork chosen on the Metadata screen and not yet saved, by ID.
+    pub covers: Mutex<HashMap<String, crate::tags::CoverImage>>,
 }
 
 impl AppState {
@@ -153,6 +159,8 @@ impl AppState {
             quitting: AtomicBool::new(false),
             frontend_ready: AtomicBool::new(false),
             pending_section: Mutex::new(None),
+            metadata_files: Mutex::new(HashSet::new()),
+            covers: Mutex::new(HashMap::new()),
         })
     }
 
