@@ -48,11 +48,19 @@ in `dist/windows` is that tested artifact; its SHA-256 is beside it.
   tags), editing a photo's details, the rename dialog's clash warning, artwork display.
 - The self-test's `metadata` step passed on this Mac.
 
+**Verified on Windows (GitHub's Windows Server 2025 runner), 12 November 2026.**
+- CI run 43317539052: interface checks, and the engine's formatting, lint and full test suite (including
+  `tests/tags.rs`) on Windows and macOS.
+- Build installers run 43317534288: `MediaForge-Setup.exe` for 1.3.0 (build 6) installed silently, its
+  self-test passed every step, `metadata` included ("tags, artwork and a new name written (ID3v2.3)", through
+  `ReplaceFileW`), then it uninstalled cleanly. The installer and its verification files are in
+  `MediaForge-Tauri/dist/windows-1.3.0` (SHA-256 `790b42ce…`, in `.sha256` beside it); the 1.2.0 installer is
+  still in `dist/windows`.
+
 **Still unverified in 1.3.0:**
 - File Explorer's Details tab showing the photo fields and Office properties MediaForge writes, and Spotify
   showing its tags and artwork (ID3v2.3 with a front cover is the form both read, but neither was tried).
 - HEIC writing (little_exif supports it; no HEIC file was tested).
-- The Windows installer's run of the `metadata` self-test step (to be added here from the Build installers run).
 
 ## 1.2.0: pictures
 
