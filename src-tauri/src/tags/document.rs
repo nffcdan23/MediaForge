@@ -292,6 +292,9 @@ pub fn write_office(path: &Path, fields: &BTreeMap<Field, String>) -> Result<(),
         .map_err(|_| TagError::new("Couldn't save the properties", "The document came out unreadable, so it wasn't changed."))?;
     read_part(&mut check, CORE_PART)
         .ok_or_else(|| TagError::new("Couldn't save the properties", "The document came out unreadable, so it wasn't changed."))?;
+    // Windows won't swap files that are still open: close the original and the check first.
+    drop(check);
+    drop(archive);
     temporary.replace(path)
 }
 
