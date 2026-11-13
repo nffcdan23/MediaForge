@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-metadata-unsaved"
+description = "Enables the metadata_unsaved command without any pre-configured scope."
+commands.allow = ["metadata_unsaved"]
+
+[[permission]]
+identifier = "deny-metadata-unsaved"
+description = "Denies the metadata_unsaved command without any pre-configured scope."
+commands.deny = ["metadata_unsaved"]

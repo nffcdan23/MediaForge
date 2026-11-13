@@ -16,6 +16,13 @@
         "role": "Viewer",
         "rank": "Alternate",
         "contentTypes": ["public.movie"]
+      },
+      {
+        "ext": ["webp"],
+        "name": "WebP image",
+        "role": "Viewer",
+        "rank": "Alternate",
+        "contentTypes": ["org.webmproject.webp"]
       }
     ]
   }

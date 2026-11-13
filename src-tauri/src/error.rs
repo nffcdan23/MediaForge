@@ -19,6 +19,8 @@ pub enum MediaForgeError {
     NoMatchingFormat,
     ExceedsSizeLimit,
     NoAudioStream,
+    /// An image in a format MediaForge can't read, named (for example "AVIF").
+    UnsupportedImage(String),
     UnreadableFile(String),
     SourceFileMissing(String),
     ConversionFailed(String),
@@ -46,6 +48,7 @@ impl MediaForgeError {
             Self::NoMatchingFormat => "noMatchingFormat",
             Self::ExceedsSizeLimit => "exceedsSizeLimit",
             Self::NoAudioStream => "noAudioStream",
+            Self::UnsupportedImage(_) => "unsupportedImage",
             Self::UnreadableFile(_) => "unreadableFile",
             Self::SourceFileMissing(_) => "sourceFileMissing",
             Self::ConversionFailed(_) => "conversionFailed",
@@ -73,6 +76,7 @@ impl MediaForgeError {
             Self::NoMatchingFormat => "No matching format".into(),
             Self::ExceedsSizeLimit => "Larger than your size limit".into(),
             Self::NoAudioStream => "No audio track".into(),
+            Self::UnsupportedImage(_) => "Unsupported image format".into(),
             Self::UnreadableFile(_) => "Unreadable file".into(),
             Self::SourceFileMissing(_) => "File not found".into(),
             Self::ConversionFailed(_) => "Conversion failed".into(),
@@ -111,6 +115,10 @@ impl MediaForgeError {
             }
             Self::ExceedsSizeLimit => "This download is larger than the maximum size set in Settings.".into(),
             Self::NoAudioStream => "This file doesn't contain an audio track to convert.".into(),
+            Self::UnsupportedImage(name) => {
+                let known = "MediaForge converts WebP, PNG, JPEG, GIF, BMP and TIFF images.";
+                if name.is_empty() { known.into() } else { format!("{known} This one is {name}.") }
+            }
             Self::UnreadableFile(detail) => or_default(detail, "The file is damaged or isn't a media file MediaForge understands."),
             Self::SourceFileMissing(name) => format!("{name} has been moved or deleted."),
             Self::ConversionFailed(detail) => or_default(detail, "FFmpeg couldn't convert this media."),
@@ -133,6 +141,7 @@ impl MediaForgeError {
                 | Self::GeoRestricted
                 | Self::LiveStream
                 | Self::NoAudioStream
+                | Self::UnsupportedImage(_)
                 | Self::UnreadableFile(_)
         )
     }
@@ -201,6 +210,7 @@ mod tests {
             MediaForgeError::NoMatchingFormat,
             MediaForgeError::ExceedsSizeLimit,
             MediaForgeError::NoAudioStream,
+            MediaForgeError::UnsupportedImage("AVIF".into()),
             MediaForgeError::UnreadableFile(String::new()),
             MediaForgeError::SourceFileMissing("x.wav".into()),
             MediaForgeError::ConversionFailed(String::new()),

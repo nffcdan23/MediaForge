@@ -1,5 +1,5 @@
 //! Artwork for the UI: thumbnails supplied by a media source, frames from video files, cover art embedded in
-//! audio files, and waveform peaks for the preview player.
+//! audio files, small copies of images, and waveform peaks for the preview player.
 //!
 //! Everything is handed to the webview as data, so the webview itself never fetches from the network or
 //! reads files.
@@ -132,8 +132,8 @@ impl ArtworkCache {
         (!data.is_empty()).then_some(data)
     }
 
-    /// A frame from a video file, or an audio file's embedded cover art, as a data URL. `None` when there is
-    /// nothing specific to show, so the UI uses its own placeholder.
+    /// A frame from a video file, an audio file's embedded cover art, or a small copy of an image, as a data
+    /// URL. `None` when there is nothing specific to show, so the UI uses its own placeholder.
     pub async fn local(&self, path: &Path, ffmpeg_path: Option<&Path>) -> Option<String> {
         let metadata = std::fs::metadata(path).ok()?;
         if !metadata.is_file() {
@@ -150,13 +150,19 @@ impl ArtworkCache {
         if let Ok(data) = std::fs::read(&file) {
             return self.remember(key, data_url(&data));
         }
-        let ffmpeg_path = ffmpeg_path?;
-        let is_audio = crate::engine::media_files::is_audio(path);
-        let mut image = extract_frame(ffmpeg_path, path, if is_audio { None } else { Some(1.0) }).await;
-        if image.is_none() && !is_audio {
-            // Shorter than a second, or no keyframe there: take the very first frame.
-            image = extract_frame(ffmpeg_path, path, None).await;
-        }
+        let image = if crate::engine::media_files::is_image(path) {
+            let source = path.to_path_buf();
+            tokio::task::spawn_blocking(move || crate::media::image::thumbnail(&source, 480)).await.ok().flatten()
+        } else {
+            let ffmpeg_path = ffmpeg_path?;
+            let is_audio = crate::engine::media_files::is_audio(path);
+            let mut frame = extract_frame(ffmpeg_path, path, if is_audio { None } else { Some(1.0) }).await;
+            if frame.is_none() && !is_audio {
+                // Shorter than a second, or no keyframe there: take the very first frame.
+                frame = extract_frame(ffmpeg_path, path, None).await;
+            }
+            frame
+        };
         if let Some(data) = &image
             && std::fs::create_dir_all(&self.directory).is_ok()
         {

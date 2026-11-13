@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-metadata-reload"
+description = "Enables the metadata_reload command without any pre-configured scope."
+commands.allow = ["metadata_reload"]
+
+[[permission]]
+identifier = "deny-metadata-reload"
+description = "Denies the metadata_reload command without any pre-configured scope."
+commands.deny = ["metadata_reload"]

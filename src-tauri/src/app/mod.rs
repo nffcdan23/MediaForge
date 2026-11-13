@@ -7,6 +7,7 @@ mod debug;
 pub mod local_server;
 #[cfg(target_os = "macos")]
 mod menu;
+pub mod metadata;
 mod self_test;
 pub mod state;
 
@@ -86,6 +87,14 @@ pub fn run() {
             commands::preview_source,
             commands::licensing_summary,
             commands::show_main_window,
+            metadata::metadata_choose_files,
+            metadata::metadata_reload,
+            metadata::metadata_forget,
+            metadata::metadata_unsaved,
+            metadata::metadata_save,
+            metadata::metadata_cover,
+            metadata::metadata_choose_cover,
+            metadata::metadata_export_cover,
         ])
         .build(tauri::generate_context!())
         .expect("MediaForge couldn't start");
@@ -269,13 +278,17 @@ fn on_window_event(window: &tauri::Window, event: &WindowEvent) {
                 // Closing the window shouldn't abandon a queue that's still working; the app stays in the Dock.
                 api.prevent_close();
                 let _ = window.hide();
-            } else if state.queue.pending_count(None) > 0 {
+            } else if has_unfinished_work(&state) {
                 api.prevent_close();
                 confirm_quit(app);
             }
         }
         WindowEvent::DragDrop(tauri::DragDropEvent::Drop { paths, .. }) => {
-            if !paths.is_empty() {
+            if paths.is_empty() {
+            } else if state.settings().selected_section == Section::Metadata {
+                // Any file can have its name and dates edited, so nothing is filtered out here.
+                metadata::add_dropped(Arc::clone(&state), paths.clone());
+            } else {
                 open_files(&state, paths.clone());
             }
         }
@@ -295,7 +308,7 @@ fn on_run_event(app: &AppHandle, event: RunEvent) {
             if state.quitting.load(Ordering::SeqCst) || code.is_some() {
                 return;
             }
-            if state.queue.pending_count(None) > 0 {
+            if has_unfinished_work(&state) {
                 api.prevent_exit();
                 confirm_quit(app);
             }
@@ -326,15 +339,30 @@ fn on_run_event(app: &AppHandle, event: RunEvent) {
     }
 }
 
+/// Downloads or conversions still running, or Metadata changes not yet saved.
+fn has_unfinished_work(state: &AppState) -> bool {
+    state.queue.pending_count(None) > 0 || state.metadata_unsaved.load(Ordering::SeqCst) > 0
+}
+
 /// Asks before quitting with work unfinished.
 fn confirm_quit(app: &AppHandle) {
     let Some(state) = app.try_state::<Arc<AppState>>() else { return };
     state.show_window();
     let pending = state.queue.pending_count(None);
-    let headline = if pending == 1 { "A job is still in progress.".to_string() } else { format!("{pending} jobs are still in progress.") };
+    let unsaved = state.metadata_unsaved.load(Ordering::SeqCst);
+    let (headline, message) = if pending == 0 {
+        (
+            if unsaved == 1 { "A file has unsaved changes.".to_string() } else { format!("{unsaved} files have unsaved changes.") },
+            "Quitting now loses the changes made on the Metadata screen. Save them first to keep them.".to_string(),
+        )
+    } else {
+        let jobs = if pending == 1 { "A job is still in progress.".to_string() } else { format!("{pending} jobs are still in progress.") };
+        let also = if unsaved > 0 { " Unsaved changes on the Metadata screen will be lost too." } else { "" };
+        (jobs, format!("Quitting now cancels unfinished downloads and conversions. Completed files are kept.{also}"))
+    };
     let handle = app.clone();
     app.dialog()
-        .message("Quitting now cancels unfinished downloads and conversions. Completed files are kept.")
+        .message(message)
         .title(headline)
         .kind(MessageDialogKind::Warning)
         .buttons(MessageDialogButtons::OkCancelCustom("Quit".into(), "Keep Working".into()))

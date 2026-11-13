@@ -6,6 +6,9 @@ import type {
   AudioFormat,
   AudioOptions,
   BitDepth,
+  ImageFormat,
+  ImageOptions,
+  ImageQuality,
   OutputSpec,
   RateLimit,
   SampleRate,
@@ -24,6 +27,8 @@ export const compatibilities: VideoCompatibility[] = ["h264", "hevc", "original"
 export const rateLimits: RateLimit[] = [0, 1, 2, 5, 10, 25];
 export const sizeLimits: SizeLimit[] = [0, 500, 1000, 2000, 5000, 10000];
 export const appearances: Appearance[] = ["dark", "light", "system"];
+export const imageFormats: ImageFormat[] = ["jpg", "png"];
+export const imageQualities: ImageQuality[] = [95, 90, 80, 70];
 
 export const formatName = (format: AudioFormat) => format.toUpperCase();
 
@@ -46,6 +51,20 @@ export function formatDetail(format: AudioFormat): string {
     case "aiff":
       return "Uncompressed, Apple native";
   }
+}
+
+export const imageFormatName = (format: ImageFormat) => format.toUpperCase();
+
+export function imageFormatDetail(format: ImageFormat): string {
+  return format === "jpg" ? "Opens anywhere; transparent areas become white" : "Lossless, keeps transparency";
+}
+
+export function imageQualityName(quality: ImageQuality): string {
+  return quality === 95 ? "Maximum" : quality === 90 ? "High" : quality === 80 ? "Medium" : "Low";
+}
+
+export function imageSummary(options: ImageOptions): string {
+  return options.format === "jpg" ? `JPG · ${imageQualityName(options.quality)} quality` : "PNG · Lossless";
 }
 
 export const bitrateName = (bitrate: AudioBitrate) => `${bitrate} kbps`;
@@ -102,11 +121,25 @@ export function audioSummary(options: AudioOptions): string {
 }
 
 export function outputSummary(output: OutputSpec): string {
-  return output.type === "audio" ? audioSummary(output) : `MP4 · ${qualityShortName(output.quality)}`;
+  switch (output.type) {
+    case "audio":
+      return audioSummary(output);
+    case "video":
+      return `MP4 · ${qualityShortName(output.quality)}`;
+    case "image":
+      return imageSummary(output);
+  }
 }
 
 export function outputBadge(output: OutputSpec): string {
-  return output.type === "audio" ? formatName(output.format) : "MP4";
+  switch (output.type) {
+    case "audio":
+      return formatName(output.format);
+    case "video":
+      return "MP4";
+    case "image":
+      return imageFormatName(output.format);
+  }
 }
 
 export function videoQualityOptions(maxHeight: number | null | undefined): VideoQuality[] {

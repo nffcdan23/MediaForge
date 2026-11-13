@@ -163,6 +163,9 @@ export const useDownloads = <S,>(selector: (state: DownloadsState) => S) => useS
 /** Video is only offered when the source actually has some. */
 export const offersVideo = (resolution: Resolution | null) => resolution?.hasVideo ?? true;
 
+/** A link to a picture, which becomes a JPG or PNG rather than audio or video. */
+export const isImageLink = (resolution: Resolution | null) => resolution?.image != null;
+
 export function effectiveMode(settings: Settings, resolution: Resolution | null) {
   return offersVideo(resolution) ? settings.downloadMode : "audio";
 }
@@ -177,10 +180,12 @@ export function effectiveQuality(settings: Settings, resolution: Resolution | nu
 }
 
 export function outputFor(settings: Settings, resolution: Resolution | null): OutputSpec {
+  if (isImageLink(resolution)) return { type: "image", format: settings.imageFormat, quality: settings.imageQuality };
   if (effectiveMode(settings, resolution) === "video") return { type: "video", quality: effectiveQuality(settings, resolution) };
   return { type: "audio", format: settings.audioFormat, bitrate: settings.audioBitrate, sampleRate: settings.sampleRate, bitDepth: settings.bitDepth };
 }
 
 export function conversionNoteApplies(settings: Settings, resolution: Resolution | null): boolean {
+  if (isImageLink(resolution)) return false;
   return expectsConversionNote(effectiveMode(settings, resolution), settings.videoCompatibility, resolution, effectiveQuality(settings, resolution));
 }

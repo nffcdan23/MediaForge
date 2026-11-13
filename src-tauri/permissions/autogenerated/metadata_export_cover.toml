@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-metadata-export-cover"
+description = "Enables the metadata_export_cover command without any pre-configured scope."
+commands.allow = ["metadata_export_cover"]
+
+[[permission]]
+identifier = "deny-metadata-export-cover"
+description = "Denies the metadata_export_cover command without any pre-configured scope."
+commands.deny = ["metadata_export_cover"]

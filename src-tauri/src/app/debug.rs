@@ -7,11 +7,13 @@
 //! - `MEDIAFORGE_DEBUG_URL`: text to place in the link field after launch (`\n` for several lines).
 //! - `MEDIAFORGE_DEBUG_ENQUEUE=1`: press Download once that link has resolved.
 //! - `MEDIAFORGE_DEBUG_FILES`: newline-separated paths to add to the conversion queue after launch.
-//! - `MEDIAFORGE_DEBUG_SECTION`: downloads, conversions, history or settings.
+//! - `MEDIAFORGE_DEBUG_METADATA_FILES`: newline-separated paths to add to the Metadata screen after launch.
+//! - `MEDIAFORGE_DEBUG_SECTION`: downloads, conversions, metadata, history or settings.
 //! - `MEDIAFORGE_DEBUG_WINDOW_SIZE`: `WIDTHxHEIGHT` in points.
 //! - `MEDIAFORGE_DEBUG_SCROLL_TO_END=1`: scroll the current screen to its bottom.
-//! - `MEDIAFORGE_DEBUG_ACTION`: a UI action to perform (`terms`, `log:<n>`, `previewMuted`, `videoPreview`), at
-//!   `MEDIAFORGE_DEBUG_ACTION_AT` seconds after the window is ready.
+//! - `MEDIAFORGE_DEBUG_ACTION`: a UI action to perform (`terms`, `log:<n>`, `previewMuted`, `videoPreview`,
+//!   `imagePreview`, and the Metadata screen's `metadata…` actions in `src/state/actions.ts`), at
+//!   `MEDIAFORGE_DEBUG_ACTION_AT` seconds after the window is ready. Several, separated by `;`, run a second apart.
 //! - `MEDIAFORGE_DEBUG_SNAPSHOT`: path prefix for PNGs of the window (macOS).
 //! - `MEDIAFORGE_DEBUG_SNAPSHOT_AT`: comma-separated seconds after launch at which to take them.
 //! - `MEDIAFORGE_DEBUG_REPORT`: seconds after launch at which to print queue, tools and licensing state.
@@ -73,6 +75,9 @@ pub fn install(app: &AppHandle) {
         if let Some(section) = var("MEDIAFORGE_DEBUG_SECTION").and_then(|s| serde_json::from_value::<Section>(json!(s)).ok()) {
             state.navigate(section);
         }
+        if let Some(files) = var("MEDIAFORGE_DEBUG_METADATA_FILES") {
+            super::metadata::add_dropped(Arc::clone(&state), files.split('\n').map(PathBuf::from).collect());
+        }
         if let Some(files) = var("MEDIAFORGE_DEBUG_FILES") {
             let paths: Vec<PathBuf> = files.split('\n').map(PathBuf::from).collect();
             if let Err(error) = super::commands::import_paths(&state, &paths, None) {
@@ -90,7 +95,12 @@ pub fn install(app: &AppHandle) {
         if let Some(action) = var("MEDIAFORGE_DEBUG_ACTION") {
             let delay = var("MEDIAFORGE_DEBUG_ACTION_AT").and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
             after(delay).await;
-            let _ = handle.emit(events::DEBUG, json!({"action": action}));
+            for (index, action) in action.split(';').map(str::trim).filter(|a| !a.is_empty()).enumerate() {
+                if index > 0 {
+                    after(1.0).await;
+                }
+                let _ = handle.emit(events::DEBUG, json!({"action": action}));
+            }
         }
     });
 

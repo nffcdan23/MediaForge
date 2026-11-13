@@ -1,5 +1,8 @@
 //! Runs one job from start to finish: download, convert, then move the result into place.
 //!
+//! Audio and video are fetched by yt-dlp and converted by FFmpeg. Images are fetched by MediaForge itself
+//! (media::image_link) and converted in-process (media::image).
+//!
 //! Work happens in a private temporary folder. Nothing appears in the destination until it is complete, and
 //! the folder is removed however the job ends.
 
@@ -8,15 +11,17 @@ use std::time::Duration;
 
 use tokio_util::sync::CancellationToken;
 
-use crate::engine::job::{JobProgress, JobSource, JobState};
+use crate::engine::job::{Job, JobProgress, JobSource, JobState};
 use crate::engine::output_files;
 use crate::engine::queue::{JobEnvironment, JobHandle, removed};
 use crate::error::{Failure, JobResult, MediaForgeError};
 use crate::media::ffmpeg::{self, Ffmpeg, MediaTags, ProgressParser};
+use crate::media::image::{self as images, Sniffed};
+use crate::media::image_link;
 use crate::media::metadata::MediaMetadata;
 use crate::media::video::{self, EncoderFamily};
 use crate::media::ytdlp::{self, ProgressAggregator, YtDlp, YtDlpEvent};
-use crate::models::{AudioOptions, OutputSpec};
+use crate::models::{AudioOptions, ImageOptions, OutputSpec};
 use crate::process::{ProcessEvent, ProcessExit};
 use crate::support::url_validator::ValidatedUrl;
 use crate::tools::Tool;
@@ -42,26 +47,45 @@ async fn perform(job: &JobHandle, environment: &JobEnvironment, cancel: &Cancell
         .await
         .map_err(|e| MediaForgeError::Unknown(e.to_string()))??;
 
-    let (source, output, title, detail) =
+    let (source, mut output, title, detail) =
         job.read(|j| (j.source.clone(), j.output, j.title.clone(), j.detail.clone())).ok_or_else(removed)?;
+    // An image link in a batch queued for audio or video: it can only become an image.
+    if let JobSource::Remote(url) = &source
+        && !matches!(output, OutputSpec::Image(_))
+        && image_link::looks_like_image(url)
+    {
+        output = as_image(job, environment);
+    }
     let finished = match (&source, output) {
-        (JobSource::Remote(url), OutputSpec::Audio(options)) => {
-            let downloaded = download(job, environment, cancel, url, &output, work).await?;
-            let tags = if environment.embed_metadata {
-                let (title, detail) = job.read(|j| (j.title.clone(), j.detail.clone())).unwrap_or((title, detail));
-                MediaTags { title: Some(title), artist: detail, comment: Some(url.as_str().to_string()) }
-            } else {
-                MediaTags::default()
-            };
-            convert(job, environment, cancel, &downloaded, &options, &tags, work).await?
+        (JobSource::Remote(url), OutputSpec::Image(options)) => {
+            let downloaded = download_image(job, environment, cancel, url, work).await?;
+            convert_image(job, &downloaded, options, work).await?
         }
-        (JobSource::Remote(url), OutputSpec::Video(_)) => {
-            let downloaded = download(job, environment, cancel, url, &output, work).await?;
-            make_compatible(job, environment, cancel, downloaded, work).await?
+        (JobSource::Remote(url), media) => {
+            let downloaded = download(job, environment, cancel, url, &media, work).await?;
+            // A link with no file name can still turn out to be a picture: yt-dlp fetches any file that isn't
+            // a web page.
+            if let Ok(head) = read_head(&downloaded)
+                && let Sniffed::Image(_) = images::sniff(&head)
+            {
+                output = as_image(job, environment);
+                convert_image(job, &downloaded, environment.image_options, work).await?
+            } else if let OutputSpec::Audio(options) = media {
+                let tags = if environment.embed_metadata {
+                    let (title, detail) = job.read(|j| (j.title.clone(), j.detail.clone())).unwrap_or((title, detail));
+                    MediaTags { title: Some(title), artist: detail, comment: Some(url.as_str().to_string()) }
+                } else {
+                    MediaTags::default()
+                };
+                convert(job, environment, cancel, &downloaded, &options, &tags, work).await?
+            } else {
+                make_compatible(job, environment, cancel, downloaded, work).await?
+            }
         }
         (JobSource::File(file), OutputSpec::Audio(options)) => {
             convert(job, environment, cancel, file, &options, &MediaTags::default(), work).await?
         }
+        (JobSource::File(file), OutputSpec::Image(options)) => convert_image(job, file, options, work).await?,
         (JobSource::File(_), OutputSpec::Video(_)) => return Err(MediaForgeError::NoMatchingFormat.into()),
     };
 
@@ -85,6 +109,66 @@ fn check(cancel: &CancellationToken) -> JobResult<()> {
 
 fn size_of(path: &Path) -> u64 {
     std::fs::metadata(path).map(|m| m.len()).unwrap_or(0)
+}
+
+fn as_image(job: &JobHandle, environment: &JobEnvironment) -> OutputSpec {
+    let output = OutputSpec::Image(environment.image_options);
+    job.update(|j| j.output = output);
+    output
+}
+
+fn read_head(path: &Path) -> std::io::Result<Vec<u8>> {
+    use std::io::Read;
+    let mut head = Vec::with_capacity(32);
+    std::fs::File::open(path)?.take(32).read_to_end(&mut head)?;
+    Ok(head)
+}
+
+// MARK: - Images
+
+async fn download_image(
+    job: &JobHandle,
+    environment: &JobEnvironment,
+    cancel: &CancellationToken,
+    url: &ValidatedUrl,
+    work: &Path,
+) -> JobResult<PathBuf> {
+    let downloaded = image_link::download(url, work, environment.limits, cancel, |transfer| {
+        let first = job.read(|j| j.state != JobState::Downloading).unwrap_or(false);
+        let change = |j: &mut Job| {
+            j.state = JobState::Downloading;
+            let remaining = match (transfer.total, transfer.bytes_per_second) {
+                (Some(total), Some(speed)) if speed > 0.0 => Some(total.saturating_sub(transfer.received) as f64 / speed),
+                _ => None,
+            };
+            j.progress = JobProgress {
+                fraction: transfer.total.map(|total| (transfer.received as f64 / total as f64).min(1.0)),
+                bytes_per_second: transfer.bytes_per_second,
+                seconds_remaining: remaining,
+                downloaded_bytes: Some(transfer.received),
+                total_bytes: transfer.total,
+                conversion_speed: None,
+            };
+        };
+        if first { job.update(change) } else { job.progress(change) }
+    })
+    .await?;
+    // A link queued without a title (one of a batch) is named after its file.
+    if job.read(|j| j.title == url.display_name()).unwrap_or(false) {
+        job.update(|j| j.title = downloaded.title.clone());
+    }
+    Ok(downloaded.path)
+}
+
+async fn convert_image(job: &JobHandle, input: &Path, options: ImageOptions, work: &Path) -> JobResult<PathBuf> {
+    job.set_state(JobState::Converting);
+    let input = input.to_path_buf();
+    let output = work.join(format!("converted.{}", options.format.extension()));
+    let target = output.clone();
+    tokio::task::spawn_blocking(move || images::convert(&input, &target, options))
+        .await
+        .map_err(|_| MediaForgeError::ConversionFailed("MediaForge couldn't convert this image.".into()))??;
+    Ok(output)
 }
 
 // MARK: - Download

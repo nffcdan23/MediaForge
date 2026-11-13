@@ -13,6 +13,7 @@ pub mod models;
 pub mod process;
 pub mod store;
 pub mod support;
+pub mod tags;
 pub mod tools;
 
 pub use app::run;

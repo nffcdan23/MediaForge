@@ -1,6 +1,8 @@
 # Verification report
 
-What was built, compiled and tested, and what remains unverified. Written 18 October 2026.
+What was built, compiled and tested, and what remains unverified. Written 18 October 2026 for 1.1.0, the
+first cross-platform version; the 1.2.0 section (picture conversion) was added on 27 October 2026, and the
+1.3.0 section (the Metadata screen) on 12 November 2026.
 
 **Rule followed throughout:** nothing is described as working unless it was seen working. "Configured" means
 set up but not exercised.
@@ -9,12 +11,117 @@ set up but not exercised.
 
 | Installer | Location | Built on |
 | --- | --- | --- |
-| `MediaForge.dmg` (universal, internal test build) | `MediaForge-Tauri/dist/macos/MediaForge.dmg` (144 MB; SHA-256 `d7dada58…` in `.sha256` beside it) | This Mac |
-| `MediaForge.dmg` (same, from CI) | GitHub ▸ nffcdan23/MediaForge ▸ Actions ▸ Build installers ▸ artifact `MediaForge-macOS` | GitHub macOS 26 runner |
-| `MediaForge-Setup.exe` | `MediaForge-Tauri/dist/windows/MediaForge-Setup.exe` (95 MB; SHA-256 `656266a2…` in `.sha256` beside it), downloaded from the CI artifact `MediaForge-Windows` (Build installers run 39151925688), with its installation log and screenshots in `dist/windows/verification` | GitHub Windows Server 2025 runner |
+Version 1.2.0 (build 5):
+
+| Installer | Location | Built on |
+| --- | --- | --- |
+| `MediaForge.dmg` (universal, internal test build) | `MediaForge-Tauri/dist/macos/MediaForge.dmg` (144 MB; SHA-256 `005dd6c9…` in `.sha256` beside it) | This Mac |
+| `MediaForge.dmg` (same, from CI) | `MediaForge-Tauri/dist/ci/MediaForge-macOS/`, from the CI artifact `MediaForge-macOS` (Build installers run 40521520205) | GitHub macOS 26 runner |
+| `MediaForge-Setup.exe` | `MediaForge-Tauri/dist/windows/MediaForge-Setup.exe` (95 MB; SHA-256 `0ea479f5…` in `.sha256` beside it), from the CI artifact `MediaForge-Windows` (Build installers run 40521520205), with its installation log and screenshots in `dist/windows/verification` | GitHub Windows Server 2025 runner |
 
 The Windows installer was built, installed, self-tested and uninstalled on GitHub's Windows machine. The copy
 in `dist/windows` is that tested artifact; its SHA-256 is beside it.
+
+## 1.3.0: metadata
+
+**What changed.**
+- A Metadata screen edits the tags and details stored in files of any kind (see the README and
+  [ARCHITECTURE.md](ARCHITECTURE.md#metadata)).
+- The installed app's self-test has a `metadata` step: it tags a copy of the MP3 it made, adds artwork,
+  renames it and reads it back.
+
+**Verified on this Mac (macOS 27, Apple silicon), 12 November 2026.**
+- Rust unit tests (142) and end-to-end tests (`tests/engine.rs`, 20; `tests/tags.rs`, 6), clippy and rustfmt;
+  TypeScript checks and interface tests (19).
+- `tests/tags.rs`, with real files made by FFmpeg and checked by ffprobe and FFmpeg:
+  - MP3 written as ID3v2.3 (with its ID3v1 updated), with artwork, read back by ffprobe; lyrics kept; decodes
+    without errors; clearing fields and artwork works.
+  - M4A, FLAC, WAV, Opus and AIFF round trips, with artwork.
+  - MP4 (index first and last) and MOV keep playing after their tags and artwork change.
+  - MKV, WebM and AVI tags rewritten through FFmpeg; no temporary files left.
+  - Renaming, new dates, Read-only, and keeping the modified date.
+- Unit tests: JPEG and PNG details (EXIF, Windows' fields, rating, date taken) round trip, and a JPEG's XMP is
+  updated while its other XMP stays; PDF properties appended with the original bytes kept; Word properties
+  changed with every other part untouched.
+- The development app, driven by its debug hooks and checked from window snapshots: adding a folder of ten
+  mixed files, multi-select editing, numbering tracks, tags from file names, saving (ffprobe confirmed the
+  tags), editing a photo's details, the rename dialog's clash warning, artwork display.
+- The self-test's `metadata` step passed on this Mac.
+
+**Verified on Windows (GitHub's Windows Server 2025 runner), 12 November 2026.**
+- CI run 43317539052: interface checks, and the engine's formatting, lint and full test suite (including
+  `tests/tags.rs`) on Windows and macOS.
+- Build installers run 43317534288: `MediaForge-Setup.exe` for 1.3.0 (build 6) installed silently, its
+  self-test passed every step, `metadata` included ("tags, artwork and a new name written (ID3v2.3)", through
+  `ReplaceFileW`), then it uninstalled cleanly. The installer and its verification files are in
+  `MediaForge-Tauri/dist/windows-1.3.0` (SHA-256 `790b42ce…`, in `.sha256` beside it); the 1.2.0 installer is
+  still in `dist/windows`.
+
+**Still unverified in 1.3.0:**
+- File Explorer's Details tab showing the photo fields and Office properties MediaForge writes, and Spotify
+  showing its tags and artwork (ID3v2.3 with a front cover is the form both read, but neither was tried).
+- HEIC writing (little_exif supports it; no HEIC file was tested).
+
+## 1.2.0: pictures
+
+**What changed.**
+- Conversions accepts WebP, PNG, JPEG (including `.jfif`), GIF, BMP and TIFF, and turns them into JPG or PNG.
+- A link straight to a picture is looked up and downloaded by MediaForge itself and saved as JPG or PNG.
+- Settings and the Conversions screen have their own image format and JPG quality.
+- History has an Images filter. Finished pictures open in an in-app preview.
+- Open With covers WebP files on both platforms.
+- Design: [ARCHITECTURE.md](ARCHITECTURE.md#pictures).
+
+**Automated tests.**
+
+| Suite | macOS | Windows (GitHub) |
+| --- | --- | --- |
+| Rust unit tests | ✔ 123/123 on this Mac and on GitHub. 16 of them are new: lossy, transparent and animated WebP; EXIF rotation; misnamed files; unchanged copies; damaged, AVIF and missing files; thumbnails; picture links over HTTP; size limit; cancelling | ✔ 114/114 (the Unix-only process tests are replaced by Windows ones, as before) |
+| Rust end-to-end tests | ✔ 20/20, none skipped. 5 are new: WebP to JPG and PNG through the queue; a damaged picture; picture links to JPG, with the quarantine mark, including one queued as audio; size limit and a missing picture; a picture behind a link with no file name, fetched through yt-dlp | ✔ 20/20, none skipped |
+| Interface tests | ✔ 9/9 (2 new) | ✔ (Ubuntu) |
+
+**The installed app's self-test** has five new checks:
+- `convert image JPG`: a transparent WebP, with the transparent area white;
+- `convert image PNG`: transparency kept;
+- `image thumbnail`;
+- `look up image link`;
+- `download image`: a WebP link saved as JPG.
+
+All five, and every earlier check, passed on:
+- this Mac, with the 1.2.0 app from `dist/macos` (macOS 27, Apple silicon);
+- GitHub's Apple silicon Mac and **Intel Mac** (installed from the CI disk image);
+- GitHub's **Windows** machine, installed from `MediaForge-Setup.exe`, where "Open with" was registered for
+  18 file types including WebP and removed again by the uninstaller.
+
+**The interface, driven on this Mac** (a development copy with scratch folders, behind other windows):
+
+| Check | Result |
+| --- | --- |
+| Three WebP files (a photo, a badge with transparency, an animation) added to Conversions → three JPGs | ✔ |
+| The Conversions card's two rows: audio and video, and images | ✔ |
+| Image format PNG → transparency kept; the preview shows it on a chequerboard | ✔ |
+| A picture link on a local web server → picture card: IMAGE · WEBP · 960 × 640, title from the file name, size, Format and Quality | ✔ |
+| Download → `Harbour at Dusk.jpg` (960 × 640 JPEG) with the quarantine mark; listed in History | ✔ |
+| History's Images filter; Settings ▸ Images | ✔ (shown; the filter wasn't clicked) |
+
+**On the internet:** Wikimedia Commons served a public-domain WebP to MediaForge's user agent, checked with a
+64-byte range request. No full download from the internet was made for this release; downloads were
+tested against servers on the same computer.
+
+**Still unverified in 1.2.0:**
+- a full picture download from a real website (only the 64-byte check above);
+- Open With a WebP file, and dragging pictures onto the window, done by hand (the debug hook uses the same
+  import path);
+- very large pictures (the limit is 120 megapixels) for speed and memory;
+- AVIF and HEIC, which aren't supported: MediaForge says so by name instead of failing vaguely.
+
+One test launch through Launch Services left the freshly signed app suspended ("error -600"). The same launch
+repeated straight afterwards ran normally and passed the self-test, so it is recorded here and not treated as
+a fault.
+
+## 1.1.0
+
+The sections below record how 1.1.0, the first cross-platform version, was verified on 18 October 2026.
 
 ## What was implemented
 

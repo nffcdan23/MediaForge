@@ -169,7 +169,7 @@ pub struct Placed {
     pub size: u64,
 }
 
-fn is_out_of_space(error: &std::io::Error) -> bool {
+pub(crate) fn is_out_of_space(error: &std::io::Error) -> bool {
     error.kind() == ErrorKind::StorageFull || error.raw_os_error() == Some(if cfg!(windows) { 112 } else { 28 })
 }
 

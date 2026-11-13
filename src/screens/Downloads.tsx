@@ -5,6 +5,7 @@ import {
   CircleArrowDown,
   ClipboardPaste,
   Globe,
+  Image as ImageIcon,
   Info,
   Layers,
   Link as LinkIcon,
@@ -22,8 +23,8 @@ import { api } from "../api/commands";
 import type { ErrorPayload, Resolution } from "../api/types";
 import { FormatBadge, OptionField, PageHeader, Popup, ProgressBar, Segmented, Spinner, Thumbnail } from "../components/Controls";
 import { ClearFill, PlayFill } from "../components/Icons";
-import { AudioOptionsControls, QueueSection, ToolsBanner } from "../components/Jobs";
-import { duration as formatDuration, fileName } from "../lib/format";
+import { AudioOptionsControls, ImageOptionsControls, QueueSection, ToolsBanner } from "../components/Jobs";
+import { bytes, duration as formatDuration, fileName } from "../lib/format";
 import { compatibilityCodec, outputSummary, qualityName } from "../lib/options";
 import { computerName, shortcut } from "../lib/platform";
 import { navigate, pasteLink, showError, updateSettings } from "../state/actions";
@@ -32,6 +33,7 @@ import {
   downloads,
   effectiveMode,
   effectiveQuality,
+  isImageLink,
   offersVideo,
   outputFor,
   qualityOptions,
@@ -46,7 +48,7 @@ export function DownloadsScreen() {
   const hasDetection = detection.type !== "idle" && detection.type !== "invalid";
   return (
     <>
-      <PageHeader title="Download media" subtitle="Paste a link to save its audio or video in the format you need." />
+      <PageHeader title="Download media" subtitle="Paste a link to save its audio, video or picture in the format you need." />
       <ToolsBanner />
       <UrlInputCard />
       <DetectionView detection={detection} />
@@ -173,19 +175,26 @@ function ResolvingCard({ name }: { name: string }) {
 function MediaPreviewCard({ resolution }: { resolution: Resolution }) {
   const settings = useSettings();
   const thumbnail = resolution.thumbnailUrl ? { kind: "remote" as const, url: resolution.thumbnailUrl } : null;
+  const image = resolution.image;
   return (
     <div className="media-card card large detection">
       {resolution.thumbnailUrl && <WashBackground url={resolution.thumbnailUrl} />}
       <Thumbnail
         className="artwork"
         source={thumbnail}
-        icon={resolution.hasVideo ? <PlayBadge /> : <AudioWaveform size={44} color="url(#brand-gradient)" />}
+        icon={image ? <ImageIcon size={44} color="url(#brand-gradient)" /> : resolution.hasVideo ? <PlayBadge /> : <AudioWaveform size={44} color="url(#brand-gradient)" />}
         duration={resolution.duration}
       />
       <div className="info">
         <div className="badges">
           {resolution.sourceName && <FormatBadge text={resolution.sourceName.toUpperCase()} />}
-          {!resolution.hasVideo ? (
+          {image ? (
+            <>
+              <FormatBadge text="IMAGE" />
+              <FormatBadge text={image.format.toUpperCase()} />
+              {image.width != null && image.height != null && <FormatBadge text={`${image.width} × ${image.height}`} />}
+            </>
+          ) : !resolution.hasVideo ? (
             <FormatBadge text="AUDIO ONLY" />
           ) : resolution.maxVideoHeight != null ? (
             <FormatBadge text={`UP TO ${resolution.maxVideoHeight}P`} />
@@ -194,7 +203,12 @@ function MediaPreviewCard({ resolution }: { resolution: Resolution }) {
         <h2 className="selectable" title={resolution.title}>
           {resolution.title}
         </h2>
-        {resolution.uploader && <div className="uploader">{resolution.uploader}</div>}
+        {resolution.uploader && (
+          <div className="uploader">
+            {resolution.uploader}
+            {image?.size != null && ` · ${bytes(image.size)}`}
+          </div>
+        )}
         <div className="grow" />
         <OutputOptions resolution={resolution} />
         {conversionNoteApplies(settings, resolution) && (
@@ -349,10 +363,17 @@ function ErrorCard({ error }: { error: ErrorPayload }) {
   );
 }
 
-/** Audio/Video switch plus the pickers that apply to the chosen mode. */
+/** Audio/Video switch plus the pickers that apply to the chosen mode; format and quality for a picture. */
 function OutputOptions({ resolution }: { resolution: Resolution | null }) {
   const settings = useSettings();
   const mode = effectiveMode(settings, resolution);
+  if (isImageLink(resolution)) {
+    return (
+      <div className="output-options">
+        <ImageOptionsControls />
+      </div>
+    );
+  }
   return (
     <div className="output-options">
       {offersVideo(resolution) && (
@@ -390,7 +411,8 @@ function OutputOptions({ resolution }: { resolution: Resolution | null }) {
 function DownloadButton({ title, count, resolution }: { title: string; count: number; resolution: Resolution | null }) {
   const settings = useSettings();
   const tools = useApp((s) => s.tools);
-  const canDownload = tools?.canDownload ?? false;
+  // Pictures are fetched by MediaForge itself, without yt-dlp or FFmpeg.
+  const canDownload = isImageLink(resolution) || (tools?.canDownload ?? false);
   const pending = useDownloads((d) => d.detection.type);
   const ready = pending === "media" || pending === "playlist" || pending === "batch";
   return (

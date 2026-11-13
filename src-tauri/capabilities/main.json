@@ -44,6 +44,14 @@
     "allow-waveform",
     "allow-preview-source",
     "allow-licensing-summary",
-    "allow-show-main-window"
+    "allow-show-main-window",
+    "allow-metadata-choose-files",
+    "allow-metadata-reload",
+    "allow-metadata-forget",
+    "allow-metadata-unsaved",
+    "allow-metadata-save",
+    "allow-metadata-cover",
+    "allow-metadata-choose-cover",
+    "allow-metadata-export-cover"
   ]
 }

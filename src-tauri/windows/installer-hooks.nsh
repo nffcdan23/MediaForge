@@ -1,7 +1,7 @@
 ; Extra steps for the MediaForge installer (see "installerHooks" in tauri.conf.json).
 ;
-; MediaForge offers itself in Explorer's "Open with" menu for audio and video files, as the Mac version does
-; in Finder. It registers as an application that supports those types, and never as the default app for any of
+; MediaForge offers itself in Explorer's "Open with" menu for audio and video files and WebP images, as the
+; Mac version does in Finder. It registers as an application that supports those types, and never as the default app for any of
 ; them, so nothing the user has set up changes.
 
 !macro MEDIAFORGE_SUPPORTS EXT
@@ -29,6 +29,7 @@
   !insertmacro MEDIAFORGE_SUPPORTS ".webm"
   !insertmacro MEDIAFORGE_SUPPORTS ".avi"
   !insertmacro MEDIAFORGE_SUPPORTS ".wmv"
+  !insertmacro MEDIAFORGE_SUPPORTS ".webp"
 !macroend
 
 !macro NSIS_HOOK_POSTUNINSTALL

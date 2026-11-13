@@ -61,6 +61,7 @@ Note "Start Menu: $($shortcut.FullName)"
 $desktopShortcut = Join-Path ([Environment]::GetFolderPath("Desktop")) "MediaForge.lnk"
 Note ("Desktop shortcut: " + $(if (Test-Path $desktopShortcut) { $desktopShortcut } else { "none" }))
 if (-not (Test-Path "HKCU:\Software\Classes\Applications\MediaForge.exe\SupportedTypes")) { Fail "'Open with' registration is missing" }
+if ($null -eq (Get-ItemProperty "HKCU:\Software\Classes\Applications\MediaForge.exe\SupportedTypes" -Name ".webp" -ErrorAction SilentlyContinue)) { Fail "'Open with' isn't registered for WebP images" }
 Note "Open with: registered for $(((Get-Item 'HKCU:\Software\Classes\Applications\MediaForge.exe\SupportedTypes').Property).Count) file types"
 
 # 2. The installed app's own self-test, with screenshots while it works.

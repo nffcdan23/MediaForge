@@ -1,19 +1,22 @@
 // The window: sidebar, toolbar, the current screen, the player, and anything shown over them (RootView.swift).
 
 import { getCurrentWebview } from "@tauri-apps/api/webview";
-import { CircleArrowDown, Folder, PanelLeft, Plus, RefreshCw, Search, Settings as SettingsIcon, Trash } from "lucide-react";
+import { CircleArrowDown, Folder, FolderPlus, PanelLeft, Plus, RefreshCw, Save, Search, Settings as SettingsIcon, Tags, Trash, WandSparkles } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "./api/commands";
 import type { Section } from "./api/types";
 import { Segmented, ToolbarButton } from "./components/Controls";
 import { BrandGradientDefs, HistoryIcon } from "./components/Icons";
-import { AlertDialog, ConfirmationDialog, LogPopover, TermsSheet, VideoPreview } from "./components/Overlays";
+import { tidy, useContextMenu } from "./components/Menu";
+import { AlertDialog, ConfirmationDialog, FilePreview, LogPopover, TermsSheet } from "./components/Overlays";
 import { PlayerBar } from "./components/PlayerBar";
 import { isPending } from "./lib/status";
 import { chooseFilesToConvert, confirmClearHistory, navigate, openDestination } from "./state/actions";
 import { usePlayer } from "./state/player";
 import { app, useApp } from "./state/store";
 import { ConversionsScreen } from "./screens/Conversions";
+import { MetadataScreen, metadataView } from "./screens/Metadata";
+import { chooseFiles, clearAllFields, clearList, dirtyPaths, metadata, numberTracks, reloadSelected, removeSelected, revert, save as saveMetadata } from "./state/metadata";
 import { DownloadsScreen } from "./screens/Downloads";
 import { historyView, HistoryScreen, type HistoryFilter } from "./screens/History";
 import { SettingsScreen } from "./screens/Settings";
@@ -22,6 +25,7 @@ import { useStore } from "./state/store";
 const titles: Record<Section, string> = {
   downloads: "Downloads",
   conversions: "Conversions",
+  metadata: "Metadata",
   history: "History",
   settings: "Settings",
 };
@@ -34,6 +38,7 @@ export function App() {
   const showingTerms = useApp((s) => s.showingTerms);
   const dropActive = useApp((s) => s.dropActive);
   const hasPlayer = usePlayer((p) => p.item !== null);
+  const hasMetadataFiles = useStore(metadata, (s) => s.files.length > 0);
   const [scrolled, setScrolled] = useState(false);
   const page = useRef<HTMLDivElement>(null);
 
@@ -71,9 +76,11 @@ export function App() {
       <Sidebar />
       <main className="detail">
         <Toolbar section={section} scrolled={scrolled} />
-        <div ref={page} className={`page scroll${hasPlayer ? " with-player" : ""}`} onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 4)}>
+        <div ref={page} className={`page scroll${hasPlayer ? " with-player" : ""}${section === "metadata" ? " metadata-page" : ""}`} onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 4)}>
           {section === "settings" ? (
             <SettingsScreen />
+          ) : section === "metadata" ? (
+            <MetadataScreen />
           ) : (
             <div className="page-content">
               {section === "downloads" && <DownloadsScreen />}
@@ -83,14 +90,14 @@ export function App() {
           )}
         </div>
         <PlayerBar />
-        {dropActive && section !== "conversions" && (
+        {dropActive && section !== "conversions" && !(section === "metadata" && !hasMetadataFiles) && (
           <div className="drop-overlay">
-            <div className="glass">Drop files to convert them</div>
+            <div className="glass">{section === "metadata" ? "Drop files to edit their metadata" : "Drop files to convert them"}</div>
           </div>
         )}
       </main>
       {showingTerms && <TermsSheet />}
-      <VideoPreview />
+      <FilePreview />
       <LogPopover />
       <ConfirmationDialog />
       <AlertDialog />
@@ -102,6 +109,7 @@ function Sidebar() {
   const jobs = useApp((s) => s.jobs);
   const pendingDownloads = jobs.filter((j) => j.kind === "download" && isPending(j.state)).length;
   const pendingConversions = jobs.filter((j) => j.kind === "conversion" && isPending(j.state)).length;
+  const unsavedMetadata = useStore(metadata, (s) => dirtyPaths(s).length);
   return (
     <nav className="sidebar" aria-label="Sections">
       <div className="sidebar-top drag-region" data-tauri-drag-region>
@@ -111,6 +119,7 @@ function Sidebar() {
         <div className="sidebar-section-title">Library</div>
         <SidebarRow section="downloads" icon={<CircleArrowDown size={16} strokeWidth={1.9} />} badge={pendingDownloads} />
         <SidebarRow section="conversions" icon={<RefreshCw size={15} strokeWidth={1.9} />} badge={pendingConversions} />
+        <SidebarRow section="metadata" icon={<Tags size={15} strokeWidth={1.9} />} badge={unsavedMetadata} />
         <SidebarRow section="history" icon={<HistoryIcon size={16} strokeWidth={1.9} />} badge={0} />
         <div className="sidebar-section-title">App</div>
         <SidebarRow section="settings" icon={<SettingsIcon size={16} strokeWidth={1.9} />} badge={0} />
@@ -190,6 +199,7 @@ function Toolbar({ section, scrolled }: { section: Section; scrolled: boolean })
         </div>
       )}
       {section === "history" && <HistoryToolbar />}
+      {section === "metadata" && <MetadataToolbar />}
     </header>
   );
 }
@@ -208,6 +218,7 @@ function HistoryToolbar() {
           { value: "all", label: "All" },
           { value: "audio", label: "Audio" },
           { value: "video", label: "Video" },
+          { value: "image", label: "Images" },
           { value: "failed", label: "Failed" },
         ]}
       />
@@ -218,6 +229,62 @@ function HistoryToolbar() {
         <Search size={14} className="secondary" />
         <input type="search" placeholder="Search history" value={query} spellCheck={false} onChange={(e) => historyView.set({ query: e.target.value })} />
       </label>
+    </>
+  );
+}
+
+function MetadataToolbar() {
+  const hasFiles = useStore(metadata, (s) => s.files.length > 0);
+  const selected = useStore(metadata, (s) => s.selected.length);
+  const unsaved = useStore(metadata, (s) => dirtyPaths(s).length);
+  const saving = useStore(metadata, (s) => s.saving !== null);
+  const loading = useStore(metadata, (s) => s.loading);
+  const { openAt: openTools, menu } = useContextMenu(() =>
+    tidy([
+      { label: "Tags from File Names…", onSelect: () => metadataView.set({ dialog: "fromName" }) },
+      { label: "Rename from Tags…", onSelect: () => metadataView.set({ dialog: "toName" }) },
+      { label: "Number Tracks in List Order", onSelect: numberTracks },
+      { label: "Clear All Fields", destructive: true, onSelect: clearAllFields },
+      "separator",
+      { label: "Revert Changes", onSelect: () => revert() },
+      { label: "Read Files Again", onSelect: () => void reloadSelected() },
+      "separator",
+      { label: "Remove from List", onSelect: removeSelected },
+      { label: "Clear List", onSelect: clearList },
+    ]),
+  );
+  return (
+    <>
+      <div className="toolbar-group">
+        <button type="button" title="Add files" aria-label="Add files" disabled={loading} onClick={() => void chooseFiles(false)}>
+          <Plus size={18} strokeWidth={1.8} />
+        </button>
+        <button type="button" title="Add a folder" aria-label="Add a folder" disabled={loading} onClick={() => void chooseFiles(true)}>
+          <FolderPlus size={17} strokeWidth={1.8} />
+        </button>
+      </div>
+      {hasFiles && (
+        <button
+          type="button"
+          className="toolbar-button"
+          title={selected > 0 ? "Tools for the selected files" : "Select files to use the tools"}
+          aria-label="Tools"
+          disabled={selected === 0}
+          onClick={(event) => {
+            const rect = event.currentTarget.getBoundingClientRect();
+            openTools(rect.left, rect.bottom + 6);
+          }}
+        >
+          <WandSparkles size={16} strokeWidth={1.8} />
+        </button>
+      )}
+      {hasFiles && (
+        <button type="button" className="button prominent toolbar-save" disabled={unsaved === 0 || saving} onClick={() => void saveMetadata()} title="Save changes to the files">
+          <Save size={14} />
+          {saving ? "Saving…" : unsaved > 0 ? `Save ${unsaved}` : "Save"}
+        </button>
+      )}
+      {menu}
     </>
   );
 }

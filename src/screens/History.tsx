@@ -1,11 +1,12 @@
 // The History screen (HistoryView.swift). Its search field and filter live in the toolbar (see App.tsx).
 
-import { AudioWaveform, CircleArrowDown, Copy, Eye, Film, Link, RefreshCw, RotateCw, Search, Trash, TriangleAlert } from "lucide-react";
+import { CircleArrowDown, Copy, Eye, Link, RefreshCw, RotateCw, Search, Trash, TriangleAlert } from "lucide-react";
 import { useMemo } from "react";
 import { api } from "../api/commands";
 import type { HistoryItem } from "../api/types";
 import { EmptyState, FormatBadge, IconButton, PageHeader, Thumbnail } from "../components/Controls";
 import { HistoryIcon, PauseFill, PlayFill } from "../components/Icons";
+import { OutputIcon } from "../components/Jobs";
 import { tidy, useContextMenu } from "../components/Menu";
 import { bytes, dayTitle, duration, fileName, time } from "../lib/format";
 import { outputBadge, outputSummary } from "../lib/options";
@@ -14,7 +15,7 @@ import { copy, preview, repeatHistory, reveal, showError } from "../state/action
 import { usePlayer } from "../state/player";
 import { Store, useApp, useStore } from "../state/store";
 
-export type HistoryFilter = "all" | "audio" | "video" | "failed";
+export type HistoryFilter = "all" | "audio" | "video" | "image" | "failed";
 
 export const historyView = new Store<{ query: string; filter: HistoryFilter }>({ query: "", filter: "all" });
 
@@ -25,7 +26,8 @@ function matches(filter: HistoryFilter, entry: HistoryItem) {
     case "audio":
       return entry.output.type === "audio" && entry.outcome === "completed";
     case "video":
-      return entry.output.type === "video" && entry.outcome === "completed";
+    case "image":
+      return entry.output.type === filter && entry.outcome === "completed";
     case "failed":
       return entry.outcome === "failed";
   }
@@ -107,7 +109,7 @@ function HistoryRow({ entry }: { entry: HistoryItem }) {
     return parts.join(" · ");
   })();
 
-  const doPreview = () => preview(entry.outputPath, entry.title, entry.detail ?? outputSummary(entry.output), entry.thumbnailUrl ?? null, isAudio);
+  const doPreview = () => preview(entry.outputPath, entry.title, entry.detail ?? outputSummary(entry.output), entry.thumbnailUrl ?? null, entry.output.type);
   const again = entry.kind === "download" ? "Download Again" : "Convert Again";
   const { onContextMenu, menu } = useContextMenu(() =>
     tidy([
@@ -128,7 +130,7 @@ function HistoryRow({ entry }: { entry: HistoryItem }) {
       <Thumbnail
         className={entry.fileExists || entry.outcome === "failed" ? "" : "faded"}
         source={source}
-        icon={isAudio ? <AudioWaveform size={18} color="url(#brand-gradient)" /> : <Film size={18} color="url(#brand-gradient)" />}
+        icon={<OutputIcon output={entry.output} size={18} />}
       />
       <div className="body">
         <div className="title-line">

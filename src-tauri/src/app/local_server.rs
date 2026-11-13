@@ -63,6 +63,9 @@ fn content_type(path: &Path) -> &'static str {
         "mpd" => "application/dash+xml",
         "xml" | "rss" => "application/rss+xml",
         "html" => "text/html; charset=utf-8",
+        "webp" => "image/webp",
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
         _ => "application/octet-stream",
     }
 }
